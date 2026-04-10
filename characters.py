@@ -4,6 +4,9 @@
 #  NÃO contém lógica de jogo, apenas as fichas dos lutadores.
 # ============================================================
 
+import os
+_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Cada personagem possui:
 #   name       → nome de exibição
 #   hp         → vida máxima
@@ -16,18 +19,20 @@
 
 CHARACTERS = [
     {
-        "id":    "raikiri",
-        "name":  "RAIKIRI",
-        "title": "O Relâmpago",
+        "id":    "luffy",
+        "name":  "MONKEY D LUFFY",
+        "title": "CHÁPEU DE PALHA",
         "hp":    100,
         "speed": 5,
-        "style": "Ninjutsu Elétrico",
-        "desc": "Velocidade acima de tudo. Golpes rápidos e devastadores.",
+        "style": "Nika",
+        "desc": "Um pirata que sonha em ser o Rei dos Piratas.",
         "color": (80, 160, 255),
         "sprite": "assets/characters/raikiri.png",
-        "light":   {"name": "Corte Rápido",    "damage": 8,  "cooldown": 20, "range": 80},
-        "medium":  {"name": "Palma Trovão",    "damage": 15, "cooldown": 35, "range": 90},
-        "special": {"name": "Relâmpago Duplo", "damage": 28, "cooldown": 70, "range": 200,
+        "anim_folder": os.path.join(_DIR, "sprites", "luffy"),
+        "sprite_scale": 1.5,
+        "light":   {"name": "Gomu Gomu no Pistol",    "damage": 8,  "cooldown": 20, "range": 80},
+        "medium":  {"name": "Gomu Gomu no Gatling",    "damage": 15, "cooldown": 35, "range": 90},
+        "special": {"name": "Gomu Gomu no Elephant Pistol", "damage": 28, "cooldown": 70, "range": 200,
                     "projectile": True},
     },
     {
@@ -37,10 +42,10 @@ CHARACTERS = [
         "hp":    100,
         "speed": 8,
         "style": "Hokage",
-        "desc": "Um ninja hiperativo e obstinado da Vila da Folha Secreta.",
+        "desc": "Um ninja hiperativo e obstinado da Vila Secreta da Folha.",
         "color": (255, 120, 20),
         "sprite": "assets/characters/naruto.png",
-        "anim_folder": "assets/characters/naruto",
+        "anim_folder": os.path.join(_DIR, "sprites", "naruto"),
         "colorkey": (0, 64, 138),  # Ajuste essa cor para remover o fundo azul das imagens nas pastas
         "sprite_scale": 1.5,
         "light":   {"name": "Combo Taijutsu", "damage": 8,  "cooldown": 18, "range": 85},

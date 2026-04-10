@@ -45,6 +45,11 @@ class EnemyAI:
         if enemy.state == STATE_HIT:
             return
 
+        # Congelar a IA inimiga se o jogador estiver usando o especial (Cinematic Wait)
+        if player.state == "attack_special":
+            enemy.stop_horizontal()
+            return
+
         # ── Timer de raciocínio ────────────────────────
         self.think_timer += 1
         if self.think_timer < self.think_delay:
@@ -140,11 +145,7 @@ class EnemyAI:
         roll = random.random()
 
         if roll < 0.15:
-            # Tentativa de especial (15%)
             if enemy.attack_special():
-                # Lançar projétil via combat manager
-                if enemy.data["special"].get("projectile"):
-                    combat_manager.spawn_projectile(enemy)
                 return
 
         if roll < 0.45:

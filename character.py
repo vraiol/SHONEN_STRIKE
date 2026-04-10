@@ -281,10 +281,19 @@ class Character:
             return False
         atk            = self.data["light"]
         self.state     = STATE_ATTACK_L
-        self.state_timer = atk["cooldown"]
-        self.cd_light  = atk["cooldown"]
+        
+        anim_frames = self.animations.get(STATE_ATTACK_L, [])
+        if anim_frames:
+            duracao = len(anim_frames) * 8
+            self.state_timer = duracao
+            self.cd_light = max(atk["cooldown"], duracao)
+            self.hitbox_timer = duracao // 3
+        else:
+            self.state_timer = atk["cooldown"]
+            self.cd_light  = atk["cooldown"]
+            self.hitbox_timer  = atk["cooldown"] // 3
+            
         self.active_hitbox = self._build_hitbox(atk["range"])
-        self.hitbox_timer  = atk["cooldown"] // 3
         return True
 
     def attack_medium(self):
@@ -293,10 +302,19 @@ class Character:
             return False
         atk            = self.data["medium"]
         self.state     = STATE_ATTACK_M
-        self.state_timer = atk["cooldown"]
-        self.cd_medium = atk["cooldown"]
+        
+        anim_frames = self.animations.get(STATE_ATTACK_M, [])
+        if anim_frames:
+            duracao = len(anim_frames) * 8
+            self.state_timer = duracao
+            self.cd_medium = max(atk["cooldown"], duracao)
+            self.hitbox_timer = duracao // 3
+        else:
+            self.state_timer = atk["cooldown"]
+            self.cd_medium = atk["cooldown"]
+            self.hitbox_timer  = atk["cooldown"] // 3
+            
         self.active_hitbox = self._build_hitbox(atk["range"])
-        self.hitbox_timer  = atk["cooldown"] // 3
         return True
 
     def attack_special(self):
@@ -308,10 +326,19 @@ class Character:
             return False
         atk             = self.data["special"]
         self.state      = STATE_ATTACK_S
-        self.state_timer  = atk["cooldown"]
-        self.cd_special = atk["cooldown"]
+        
+        anim_frames = self.animations.get(STATE_ATTACK_S, [])
+        if anim_frames:
+            duracao = len(anim_frames) * 14
+            self.state_timer = duracao
+            self.cd_special = max(atk["cooldown"], duracao)
+            self.hitbox_timer = duracao // 2
+        else:
+            self.state_timer  = atk["cooldown"]
+            self.cd_special = atk["cooldown"]
+            self.hitbox_timer  = atk["cooldown"] // 2
+            
         self.active_hitbox = self._build_hitbox(atk["range"])
-        self.hitbox_timer  = atk["cooldown"] // 2
 
         # ESCALA: aumentar personagem temporariamente no especial
         self.target_scale = 1.35

@@ -23,10 +23,10 @@ BG_IMAGE_PATH = os.path.join(_BASE_DIR, "imagens", "menu.png")
 
 # ── Controles exibidos na tela de controles ──────────────────────────────────
 controls_info = [
-    ("MOVIMENTAÇÃO",  "W / A / S / D  ou  ← ↑ ↓ →"),
-    ("ATACAR",        "J  ou  Botão X"),
-    ("DESVIAR",       "K  ou  Botão O"),
-    ("ESPECIAL",      "U  ou  Botão □"),
+    ("MOVIMENTAÇÃO",  "W / A / S / D  ou  ← ↑ ↓ →  "),
+    ("ATACAR",        "J                          "),
+    ("DESVIAR",       "K                          "),
+    ("ESPECIAL",      "L                          "),
     ("PAUSAR",        "ESC  ou  Enter"),
 ]
 
@@ -34,38 +34,6 @@ controls_info = [
 STATE_MAIN     = "main"
 STATE_CONTROLS = "controls"
 
-
-# ── Partícula decorativa ─────────────────────────────────────────────────────
-class Particle:
-    def __init__(self, width, height):
-        self.width  = width
-        self.height = height
-        self.reset()
-
-    def reset(self):
-        self.x     = random.randint(0, self.width)
-        self.y     = random.randint(0, self.height)
-        self.r     = random.uniform(1, 3)
-        self.vy    = random.uniform(-0.4, -1.2)
-        self.vx    = random.uniform(-0.3, 0.3)
-        self.alpha = random.randint(80, 200)
-        self.color = random.choice([ORANGE, YELLOW, RED, CYAN])
-
-    def update(self):
-        self.x     += self.vx
-        self.y     += self.vy
-        self.alpha -= 0.6
-        if self.y < -10 or self.alpha <= 0:
-            self.reset()
-            self.y = self.height + 5
-
-    def draw(self, surf):
-        if self.alpha <= 0:
-            return
-        s = pygame.Surface((int(self.r * 2 + 1), int(self.r * 2 + 1)), pygame.SRCALPHA)
-        pygame.draw.circle(s, (*self.color, int(self.alpha)),
-                           (int(self.r), int(self.r)), int(self.r))
-        surf.blit(s, (int(self.x - self.r), int(self.y - self.r)))
 
 
 # ── Botão genérico ────────────────────────────────────────────────────────────
@@ -133,15 +101,6 @@ def _draw_background(surf, bg_image, use_bg, width, height):
             b = int(BG_TOP[2] + (BG_BOT[2] - BG_TOP[2]) * t)
             pygame.draw.line(surf, (r, g, b), (0, y), (width, y))
 
-
-def _draw_decorations(surf, tick, width, height):
-    for i, xpos in enumerate([60, width - 60]):
-        alpha = int(120 + 80 * math.sin(tick * 0.05 + i * math.pi))
-        s = pygame.Surface((3, height), pygame.SRCALPHA)
-        s.fill((*ORANGE, alpha))
-        surf.blit(s, (xpos, 0))
-    bar_y = 185
-    pygame.draw.rect(surf, ORANGE, (80, bar_y, width - 160, 3), border_radius=2)
 
 
 def _draw_title(surf, tick, font_title, width):
@@ -238,9 +197,6 @@ def show_main_menu(screen, clock):
         bg_image = None
         use_bg   = False
 
-    # Partículas
-    particles = [Particle(width, height) for _ in range(80)]
-
     # Botões do menu principal
     _BX  = 20
     _GAP = 50
@@ -283,12 +239,6 @@ def show_main_menu(screen, clock):
         # ── Render ────────────────────────────────────────────────────────────
         if state == STATE_MAIN:
             _draw_background(screen, bg_image, use_bg, width, height)
-            _draw_decorations(screen, tick, width, height)
-
-            for p in particles:
-                p.update()
-                p.draw(screen)
-
             _draw_title(screen, tick, fonts["title"], width)
 
             for btn in main_btns:

@@ -201,11 +201,12 @@ class FightScreen:
             player_char.update()
             enemy_char.update()
 
-            # ── Lançar projétil do especial do jogador ────
-            if (player_char.state == "attack_special"
-                    and player_char.state_timer == player_char.data["special"]["cooldown"] // 2
-                    and player_char.data["special"].get("projectile")):
-                self.combat.spawn_projectile(player_char)
+            # ── Lançar projétil do especial no final da animação ────
+            for char in (player_char, enemy_char):
+                if (char.state == "attack_special"
+                        and char.state_timer == 1
+                        and char.data["special"].get("projectile")):
+                    self.combat.spawn_projectile(char)
 
             # ── Update do combate ─────────────────────────
             self.combat.update(player_char, enemy_char)
@@ -270,9 +271,7 @@ class FightScreen:
         if keys[pygame.K_k]:
             player.attack_medium()
         if keys[pygame.K_l]:
-            if player.attack_special():
-                if player.data["special"].get("projectile"):
-                    self.combat.spawn_projectile(player)
+            player.attack_special()
 
     # ─────────────────────────────────────────────────────
     #  CONTAGEM REGRESSIVA

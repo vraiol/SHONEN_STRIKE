@@ -116,12 +116,12 @@ class CharacterSelectScreen:
         self.clock  = clock
 
         # Fontes
-        self.f_title  = pygame.font.SysFont("impact",  48, bold=True)
-        self.f_big    = pygame.font.SysFont("impact",  32, bold=True)
-        self.f_name   = pygame.font.SysFont("impact",  26, bold=True)
-        self.f_med    = pygame.font.SysFont("consolas", 16, bold=True)
-        self.f_sm     = pygame.font.SysFont("consolas", 13)
-        self.f_tiny   = pygame.font.SysFont("consolas", 11)
+        self.f_title  = pygame.font.SysFont("arial",  46, bold=True)
+        self.f_big    = pygame.font.SysFont("arial",  32, bold=True)
+        self.f_name   = pygame.font.SysFont("arial",  26, bold=True)
+        self.f_med    = pygame.font.SysFont("arial", 16, bold=True)
+        self.f_sm     = pygame.font.SysFont("arial", 13)
+        self.f_tiny   = pygame.font.SysFont("arial", 11)
 
         # Estado
         self.selected   = 0          # índice selecionado
@@ -341,10 +341,14 @@ class CharacterSelectScreen:
         aura_r = int(preview_w * 0.6 + 15 * math.sin(self.frame * 0.07))
         aura   = pygame.Surface((aura_r*2, aura_r*2), pygame.SRCALPHA)
         pygame.draw.circle(aura, (*ch["color"], 30), (aura_r, aura_r), aura_r)
-        self.screen.blit(aura, (px + pw//2 - aura_r,
+        
+        # Mover o centro do personagem para a direita (fora da caixa de informações)
+        sprite_cx = px + pw + 250
+        
+        self.screen.blit(aura, (sprite_cx - aura_r,
                                 py + ph//2 - aura_r - 20))
 
-        cx_sprite = px + pw//2 - base_sprite.get_width()//2
+        cx_sprite = sprite_cx - base_sprite.get_width()//2
         cy_sprite = py + ph - base_sprite.get_height() - 10
         self.screen.blit(base_sprite, (cx_sprite, cy_sprite))
 
@@ -354,7 +358,7 @@ class CharacterSelectScreen:
         draw_text_shadow(self.screen, ch["name"], self.f_name,
                          ch["color"], tx, py + 12)
         # Título
-        title_s = self.f_sm.render(ch["title"], True, C_GRAY)
+        title_s = self.f_sm.render(ch["title"], True, C_WHITE)
         self.screen.blit(title_s, (tx, py + 42))
 
         # Linha
@@ -406,7 +410,7 @@ class CharacterSelectScreen:
                 line = test
         if line: lines_out.append(line)
         for i, l in enumerate(lines_out[:3]):
-            self.screen.blit(self.f_tiny.render(l, True, C_GRAY),
+            self.screen.blit(self.f_tiny.render(l, True, C_WHITE),
                              (tx, desc_y + i * 15))
 
     # ── Projétil giratório decorativo (ROTAÇÃO) ────────────
@@ -455,15 +459,11 @@ class CharacterSelectScreen:
         pygame.draw.line(hbar, C_ACCENT, (0, 71), (SW, 71), 2)
         self.screen.blit(hbar, (0, 0))
 
-        # ESCALA: título pulsa levemente (ESCALA animada)
-        pulse = 1.0 + 0.015 * math.sin(self.frame * 0.06)
+        # Renderiza o título estático (sem animação de escala)
         title_base = self.f_title.render("ESCOLHA SEU LUTADOR", True, C_WHITE)
-        tw = int(title_base.get_width() * pulse)
-        th = int(title_base.get_height() * pulse)
-        # ESCALA: pygame.transform.scale no texto do título
-        title_scaled = pygame.transform.scale(title_base, (tw, th))
-        self.screen.blit(title_scaled,
-                         (SW//2 - tw//2, 36 - th//2))
+        tw = title_base.get_width()
+        th = title_base.get_height()
+        self.screen.blit(title_base, (SW//2 - tw//2, 36 - th//2))
 
         # Linha decorativa vermelha abaixo do título
         lw = int(200 + 60 * math.sin(self.frame * 0.05))
@@ -580,7 +580,6 @@ class CharacterSelectScreen:
             self.screen.blit(self.bg, (0, 0))
 
             self._draw_header()
-            self._draw_rotating_orb()   # ROTAÇÃO
             self._draw_preview()        # ESCALA + sprite
             self._draw_particles()
 

@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from characters       import CHARACTERS, ENEMIES, STAGES
 from character        import Character
 from character_select import run_selection
-from menu             import show_main_menu, show_victory, show_defeat
+from menu_principal   import show_main_menu, show_victory, show_defeat
 from fight            import FightScreen
 
 SW, SH = 1000, 620
