@@ -186,8 +186,10 @@ class FightScreen:
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return "quit"
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                        action = self._show_pause_menu(bg, player_char, enemy_char, phase, total_phases, timer_s)
+                        if action == "quit":
+                            return "quit"
 
             # ── Input do jogador ──────────────────────────
             if player_char.alive:
@@ -333,3 +335,47 @@ class FightScreen:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
+
+    # ─────────────────────────────────────────────────────
+    #  MENU DE PAUSA
+    # ─────────────────────────────────────────────────────
+    def _show_pause_menu(self, bg, player, enemy, phase, total_phases, timer_s):
+        f_pause = pygame.font.SysFont("Arial", 100, bold=True)
+        f_sub   = pygame.font.SysFont("Arial", 34)
+
+        overlay = pygame.Surface((SW, SH), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+
+        while True:
+            self.clock.tick(60)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    # Desapausar
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                        return "resume"
+                    # Sair da partida pra valer
+                    if event.key == pygame.K_q:
+                        return "quit"
+
+            # Fundo congelado
+            self.screen.blit(bg, (0, 0))
+            enemy.draw(self.screen)
+            player.draw(self.screen)
+            self.combat.draw(self.screen)
+            self.hud.draw(self.screen, player, enemy, phase, total_phases, timer_s)
+
+            # Tela de Pausa
+            self.screen.blit(overlay, (0, 0))
+            txt_pause = f_pause.render("PAUSADO", True, C_GOLD)
+            self.screen.blit(txt_pause, txt_pause.get_rect(center=(SW//2, SH//2 - 50)))
+            
+            txt_sub = f_sub.render("[ ENTER ]   Continuar Jogando", True, C_WHITE)
+            self.screen.blit(txt_sub, txt_sub.get_rect(center=(SW//2, SH//2 + 40)))
+            
+            txt_quit = f_sub.render("[ Q ]   Sair para o Menu", True, (255, 100, 100))
+            self.screen.blit(txt_quit, txt_quit.get_rect(center=(SW//2, SH//2 + 90)))
+
+            pygame.display.flip()

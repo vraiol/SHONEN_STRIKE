@@ -115,7 +115,7 @@ def _draw_title(surf, tick, font_title, width):
 def _draw_controls_screen(surf, tick, mouse_pos, fonts, width, height, bg_image, use_bg):
     _draw_background(surf, bg_image, use_bg, width, height)
 
-    panel_w, panel_h = 600, 420
+    panel_w, panel_h = 680, 420
     panel_x = width  // 2 - panel_w // 2
     panel_y = height // 2 - panel_h // 2
 
@@ -317,8 +317,8 @@ def show_defeat(screen, clock, loser_name=""):
     """Tela de derrota. Retorna 'retry' ou 'menu'."""
     width, height = screen.get_size()
     try:
-        font_big   = pygame.font.SysFont("Impact", 72)
-        font_mid   = pygame.font.SysFont("Impact", 36)
+        font_big   = pygame.font.SysFont("Arial", 72)
+        font_mid   = pygame.font.SysFont("Arial", 36)
         font_small = pygame.font.SysFont("Arial",  22)
     except Exception:
         font_big   = pygame.font.Font(None, 72)
