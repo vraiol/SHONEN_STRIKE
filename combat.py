@@ -299,7 +299,9 @@ class CombatManager:
         if attacker.active_hitbox.colliderect(defender.body_rect):
             atk_data = attacker.data[attack_type]
             damage   = atk_data["damage"]
-            defender.take_damage(damage)
+            
+            is_special_hit = (attack_type == "special")
+            defender.take_damage(damage, is_special=is_special_hit)
             cx = defender.center_x
             cy = defender.y - CHAR_H // 2
             self.spawn_hit_effect(cx, cy, damage, attack_type, attacker.color)
@@ -319,7 +321,7 @@ class CombatManager:
                 if defender is proj.owner:
                     continue
                 if proj.get_rect().colliderect(defender.body_rect):
-                    defender.take_damage(proj.damage)
+                    defender.take_damage(proj.damage, is_special=True)
                     self.spawn_hit_effect(
                         proj.x, proj.y, proj.damage,
                         "special", proj.color)

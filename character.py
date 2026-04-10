@@ -349,16 +349,32 @@ class Character:
     #  RECEBER DANO
     # ─────────────────────────────────────────────────────
 
-    def take_damage(self, amount: int):
+    def take_damage(self, amount: int, is_special: bool = False):
         if not self.alive:
             return
         self.hp = max(0, self.hp - amount)
         self.state       = STATE_HIT
-        self.state_timer = 18
-        self.hit_timer   = 18
+        
+        anim_frames = self.animations.get(STATE_HIT, [])
+        if is_special and anim_frames:
+            duracao = len(anim_frames) * 8
+            self.state_timer = duracao
+            self.hit_timer   = duracao
+        else:
+            self.state_timer = 18
+            self.hit_timer   = 18
+            
+        # Reinicia a animação de hit
+        self.current_anim_frames = anim_frames
+        self.frame_index = 0
+        self.anim_timer = 0
+            
         self.active_hitbox = None
-        # Knockback leve
-        self.vx = 4.0 if self.facing_right else -4.0
+
+        # Knockback
+        knock = 8.0 if is_special else 4.0
+        self.vx = knock if self.facing_right else -knock
+        
         if self.hp <= 0:
             self.state = STATE_DEAD
 
