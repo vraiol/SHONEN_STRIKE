@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # 1. Carrega a imagem da sprite sheet
-img = cv2.imread('Monkey D Luffy.png', cv2.IMREAD_UNCHANGED)
+img = cv2.imread('sprites base dos personagens/Ichigo Kurosaki.png', cv2.IMREAD_UNCHANGED)
 
 # 2. Define qual é a cor do fundo (verde). 
 # No OpenCV, as cores são lidas em BGR (Azul, Verde, Vermelho).
@@ -23,7 +23,7 @@ bounding_boxes = [cv2.boundingRect(c) for c in contours]
 contours_ordenados = sorted(zip(contours, bounding_boxes), key=lambda b: (b[1][1] // 10, b[1][0]))
 
 # 5. Salva cada sprite recortado na ordem certa
-os.makedirs('frames', exist_ok=True)
+os.makedirs('frames ichigo', exist_ok=True)
 for i, (contour, bbox) in enumerate(contours_ordenados):
     x, y, w, h = bbox
     
@@ -33,7 +33,7 @@ for i, (contour, bbox) in enumerate(contours_ordenados):
         sprite = img[y:y+h, x:x+w]
         
         # Salva na pasta frames
-        caminho_frame = os.path.join('frames', f'luffy_frame_{i}.png')
+        caminho_frame = os.path.join('frames ichigo', f'ichigo_frame_{i}.png')
         cv2.imwrite(caminho_frame, sprite)
 
 print("Recorte finalizado!")
