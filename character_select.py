@@ -159,11 +159,15 @@ class CharacterSelectScreen:
                         fpath = os.path.join(folder, fname)
                         try:
                             img = pygame.image.load(fpath).convert_alpha()
-                            corner_color = img.get_at((0, 0))
-                            if corner_color.a == 255:
-                                pix = pygame.PixelArray(img)
-                                pix.replace(corner_color, (0, 0, 0, 0))
-                                del pix
+                            colorkey = ch.get("colorkey", None)
+                            target_color = colorkey if colorkey else img.get_at((0, 0))
+                            
+                            pix = pygame.PixelArray(img)
+                            try:
+                                pix.replace(target_color, (0, 0, 0, 0))
+                            except ValueError:
+                                pass
+                            del pix
                             frames.append(img)
                         except Exception:
                             continue

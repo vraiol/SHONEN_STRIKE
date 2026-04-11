@@ -19,6 +19,24 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 
 CHARACTERS = [
     {
+        "id":    "ichigo",
+        "name":  "ICHIGO KUROSAKI",
+        "title": "Shinigami Substituto",
+        "hp":    110,
+        "speed": 6,
+        "style": "Zangetsu",
+        "desc": "Um humano com poderes de Shinigami e uma espada gigante.",
+        "color": (255, 100, 0),
+        "sprite": "assets/characters/ichigo.png",
+        "anim_folder": os.path.join(_DIR, "sprites", "ichigo"),
+        "colorkey": (0, 128, 0),
+        "sprite_scale": 1.6,
+        "light":   {"name": "Corte Rápido",    "damage": 10, "cooldown": 20, "range": 90},
+        "medium":  {"name": "Corte Preciso",   "damage": 18, "cooldown": 35, "range": 100},
+        "special": {"name": "Getsuga Tenshou", "damage": 35, "cooldown": 75, "range": 220,
+                    "projectile": True},
+    },
+    {
         "id":    "luffy",
         "name":  "MONKEY D LUFFY",
         "title": "CHÁPEU DE PALHA",
@@ -46,7 +64,7 @@ CHARACTERS = [
         "color": (255, 120, 20),
         "sprite": "assets/characters/naruto.png",
         "anim_folder": os.path.join(_DIR, "sprites", "naruto"),
-        "colorkey": (0, 64, 138),  # Ajuste essa cor para remover o fundo azul das imagens nas pastas
+        "colorkey": (0, 64, 128),  
         "sprite_scale": 1.5,
         "light":   {"name": "Combo Taijutsu", "damage": 8,  "cooldown": 18, "range": 85},
         "medium":  {"name": "Rasengan",       "damage": 16, "cooldown": 32, "range": 105},
