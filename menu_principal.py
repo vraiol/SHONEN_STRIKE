@@ -19,7 +19,7 @@ CYAN        = (0, 220, 255)
 
 # ── Caminho da imagem de fundo ───────────────────────────────────────────────
 _BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
-BG_IMAGE_PATH = os.path.join(_BASE_DIR, "imagens", "menu.png")
+BG_IMAGE_PATH = os.path.join(_BASE_DIR, "imagens", "foto menu.png")
 
 # ── Controles exibidos na tela de controles ──────────────────────────────────
 controls_info = [

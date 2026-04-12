@@ -44,6 +44,9 @@ class Projectile:
         self.y   = owner.y - CHAR_H // 2
         self.vy  = 0.0
 
+        self.hit_targets = [] # Rastreia quem o projétil já acertou
+        self.is_exploding = False # Controla se o projétil atingiu o inimigo e está terminando sua animação de morte
+
         # ROTAÇÃO: ângulo acumulado (gira a cada frame)
         self.angle     = 0.0
         self.rot_speed = 7.0
@@ -100,6 +103,12 @@ class Projectile:
         pygame.draw.circle(surf, (255, 255, 255), (cx, cy), r // 3)
         self.base_surf = surf
 
+    def explode(self):
+        """Para o projétil e o deixa finalizar a animação atual antes de desaparecer."""
+        self.vx = 0
+        self.vy = 0
+        self.is_exploding = True
+
     def update(self):
         if self.is_beam:
             # Ficar preso à mão de quem disparou o laser
@@ -119,9 +128,17 @@ class Projectile:
         # Transformar animação se tiver frames
         if self.frames:
             self.anim_timer += 1
-            if self.anim_timer >= 7: # Vel da animação do disparo (maior = mais lento)
+            if self.anim_timer >= 3: # Vel da animação do disparo modificada (mais rápido para dar tempo de exibir tudo)
                 self.anim_timer = 0
-                self.frame_index = (self.frame_index + 1) % len(self.frames)
+                self.frame_index += 1
+                
+                # Chegou no último frame da pasta
+                if self.frame_index >= len(self.frames):
+                    if self.is_exploding:
+                        self.alive = False   # Termina após mostrar todos se já acertou alguém
+                        self.frame_index = len(self.frames) - 1 # Trava no último frame só para não crachar na renderização deste frame
+                    else:
+                        self.frame_index = 0 # Fica repetindo em voo (se errar)
 
         # Desativar se sair da tela
         if self.x < -150 or self.x > 1150:
@@ -321,12 +338,18 @@ class CombatManager:
                 if defender is proj.owner:
                     continue
                 if proj.get_rect().colliderect(defender.body_rect):
-                    defender.take_damage(proj.damage, is_special=True)
-                    self.spawn_hit_effect(
-                        proj.x, proj.y, proj.damage,
-                        "special", proj.color)
-                    proj.alive = False
-                    break
+                    if defender not in proj.hit_targets:
+                        defender.take_damage(proj.damage, is_special=True)
+                        self.spawn_hit_effect(
+                            proj.x, proj.y, proj.damage,
+                            "special", proj.color)
+                        proj.hit_targets.append(defender)
+                        
+                        # Destrói o projétil a não ser que tenha o atributo 'piercing' verdadeiro ou seja um raio ('is_beam')
+                        atk = proj.owner.data.get("special", {})
+                        if not atk.get("piercing", False) and not proj.is_beam:
+                            proj.explode()
+                            break
 
     # ── Update geral ──────────────────────────────────────
     def update(self, player: Character, enemy: Character):
