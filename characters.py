@@ -122,13 +122,14 @@ CHARACTERS = [
 # A IA instancia Character com esses dados, reutilizando todo o sistema de combate
 ENEMIES = [
     {   # Fase 1 — inimigo mais fraco
-        "id":    "oni_vermelho",
-        "name":  "ONI VERMELHO",
-        "title": "Guardião da Fase 1",
+        "id":    "sosuke_aizen",
+        "name":  "SOSUKE AIZEN",
+        "title": "Capitão da 5ª Divisão",
         "hp":    90,
         "speed": 3,
         "color": (220, 40, 40),
-        "sprite": "assets/characters/oni_vermelho.png",
+        "sprite": "assets/characters/sosuke_aizen.png",
+        "anim_folder": os.path.join(_DIR, "sprites", "aizen"),
         "light":   {"name": "Soco do Oni",    "damage": 10, "cooldown": 30, "range": 85},
         "medium":  {"name": "Chifrada",       "damage": 18, "cooldown": 45, "range": 95},
         "special": {"name": "Fogo do Inferno","damage": 30, "cooldown": 90, "range": 200,
