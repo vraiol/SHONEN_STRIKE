@@ -175,8 +175,8 @@ ENEMIES = [
 # Cenários das fases
 STAGES = [
     {
-        "name":       "Templo das Chamas",
-        "background": "assets/backgrounds/stage1.png",
+        "name":       "Soul Society",
+        "background": "assets/backgrounds/fase 1.png",
         "floor_color": (80, 50, 30),
         "sky_color":   (40, 20, 10),
     },
@@ -187,8 +187,8 @@ STAGES = [
         "sky_color":   (10, 15, 30),
     },
     {
-        "name":       "Pico do Dragão",
-        "background": "assets/backgrounds/stage3.png",
+        "name":       "Base Marineford",
+        "background": "assets/backgrounds/fase 3.png",
         "floor_color": (30, 30, 60),
         "sky_color":   (5,  5,  20),
     },
