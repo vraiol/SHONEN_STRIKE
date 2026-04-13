@@ -6,7 +6,7 @@ import shutil
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 1. Coloque o nome EXATO da imagem que está na pasta "sprites base dos personagens"
-NOME_DO_ARQUIVO = "Kenpachi Zaraki.png"
+NOME_DO_ARQUIVO = "Roronoa Zoro.png"
 
 # O código cria a pasta com o mesmo nome automaticamente
 NOME_PERSONAGEM = os.path.splitext(NOME_DO_ARQUIVO)[0].lower()
