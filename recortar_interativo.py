@@ -6,12 +6,12 @@ import shutil
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 1. Coloque o nome EXATO da imagem que está na pasta "sprites base dos personagens"
-NOME_DO_ARQUIVO = "Roronoa zoro.png"
+NOME_DO_ARQUIVO = "Kenpachi Zaraki.png"
 
 # O código cria a pasta com o mesmo nome automaticamente
 NOME_PERSONAGEM = os.path.splitext(NOME_DO_ARQUIVO)[0].lower()
-ARQUIVO_IMAGEM = os.path.join(_DIR, 'assets', 'characters', 'sprites base dos personagens', NOME_DO_ARQUIVO)
-PASTA_SAIDA = os.path.join(_DIR, "assets", "characters", NOME_PERSONAGEM)
+ARQUIVO_IMAGEM = os.path.join(_DIR, 'recorte_sprites', 'sprites base dos personagens', NOME_DO_ARQUIVO)
+PASTA_SAIDA = os.path.join(_DIR, "sprites", NOME_PERSONAGEM)
 MIN_WIDTH, MIN_HEIGHT = 15, 15
 
 # Usado para controle interno de qual animação recebe "2 pastas seguidas" etc.
