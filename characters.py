@@ -181,7 +181,7 @@ STAGES = [
         "sky_color":   (40, 20, 10),
     },
     {
-        "name":       "Esconderijo Uchiha",
+        "name":       "Templo Uchiha",
         "background": "assets/backgrounds/fase 2.png",
         "floor_color": (20, 40, 20),
         "sky_color":   (10, 15, 30),
