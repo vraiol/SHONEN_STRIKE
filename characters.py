@@ -107,7 +107,7 @@ CHARACTERS = [
         "id":    "zaraki",
         "name":  "ZARAKI KENPACHI",
         "title": "Capitão do 11º Esquadrão",
-        "hp":    150,
+        "hp":    110,
         "speed": 5,
         "style": "Bruto",
         "desc": "Um guerreiro sanguinário que vive apenas para lutar.",
