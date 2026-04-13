@@ -25,18 +25,16 @@ SW, SH = 1000, 620
 FPS    = 60
 
 # ── Paleta ───────────────────────────────────────────────
-C_BG1      = (5,   8,  20)   # fundo escuro superior
-C_BG2      = (10, 15,  40)   # fundo escuro inferior
-C_ACCENT   = (255, 60,  60)  # vermelho anime
-C_ACCENT2  = (255, 180,  0)  # dourado
+C_BG1      = (8, 10, 15)     # Fundo dark clean
+C_BG2      = (18, 22, 35)    
+C_ACCENT   = (255, 60,  60)
+C_ACCENT2  = (255, 180,  0)
 C_WHITE    = (255, 255, 255)
-C_GRAY     = (100, 100, 120)
-C_DARKGRAY = ( 30,  30,  50)
-C_PANEL    = ( 12,  16,  36)
-C_CARD_OFF = ( 18,  22,  45)
-C_CARD_ON  = ( 28,  34,  70)
-C_BORDER   = ( 50,  60, 120)
-C_BORDER_SEL = (255, 60, 60)
+C_GRAY     = (130, 130, 140)
+C_PANEL    = (20, 24, 38)
+C_CARD_OFF = (20, 24, 38)
+C_CARD_ON  = (35, 42, 65)
+C_BORDER   = (40, 48, 75)
 C_HP_GREEN = ( 80, 220,  80)
 C_SP_BLUE  = ( 60, 160, 255)
 C_SHADOW   = (  0,   0,   0, 160)
@@ -45,9 +43,9 @@ C_SHADOW   = (  0,   0,   0, 160)
 from characters import CHARACTERS
 
 # ── Tamanhos dos cards ────────────────────────────────────
-CARD_W, CARD_H = 140, 180
-CARD_GAP       = 20
-PREVIEW_W      = 280   # largura do painel de preview
+CARD_W, CARD_H = 110, 140
+CARD_GAP       = 15
+PREVIEW_W      = 280
 TOTAL_CARDS    = len(CHARACTERS)
 
 
@@ -185,26 +183,13 @@ class CharacterSelectScreen:
     # ── Fundo ─────────────────────────────────────────────
     def _build_bg(self):
         self.bg = pygame.Surface((SW, SH))
-        # Gradiente vertical
+        # Gradiente vertical simples e limpo
         for y in range(SH):
             t = y / SH
             r = int(lerp(C_BG1[0], C_BG2[0], t))
             g = int(lerp(C_BG1[1], C_BG2[1], t))
             b = int(lerp(C_BG1[2], C_BG2[2], t))
             pygame.draw.line(self.bg, (r, g, b), (0, y), (SW, y))
-        # Linhas decorativas em diagonal
-        for i in range(0, SW + SH, 80):
-            pygame.draw.line(self.bg, (255, 255, 255, 8),
-                             (i, 0), (i - SH, SH), 1)
-        # Hexágonos de fundo (decoração)
-        for hx in range(0, SW, 90):
-            for hy in range(0, SH, 78):
-                pts = []
-                for k in range(6):
-                    angle = math.radians(60 * k - 30)
-                    pts.append((hx + 36 * math.cos(angle),
-                                hy + 36 * math.sin(angle)))
-                pygame.draw.polygon(self.bg, (15, 20, 45), pts, 1)
 
     # ── Partículas de energia ──────────────────────────────
     def _spawn_particles(self, x, y, color, n=12):
@@ -245,69 +230,36 @@ class CharacterSelectScreen:
         x    = self.cards_start_x + idx * (CARD_W + CARD_GAP)
         y    = self.cards_y + int(self.card_offsets[idx])
 
-        # Sombra do card
-        sh_s = pygame.Surface((CARD_W + 10, CARD_H + 10), pygame.SRCALPHA)
-        pygame.draw.rect(sh_s, (0, 0, 0, 80), (5, 5, CARD_W, CARD_H), border_radius=10)
-        self.screen.blit(sh_s, (x - 2, y + 4))
-
-        # Fundo do card
+        # Fundo do card clean
         card_surf = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
         bg_color  = C_CARD_ON if sel else C_CARD_OFF
-        pygame.draw.rect(card_surf, bg_color, (0, 0, CARD_W, CARD_H), border_radius=10)
-
-        # Gradiente interno (brilho superior)
-        for row in range(CARD_H // 2):
-            alpha = int(30 * (1 - row / (CARD_H // 2)))
-            pygame.draw.rect(card_surf, (255, 255, 255, alpha),
-                             (1, row + 1, CARD_W - 2, 1))
+        pygame.draw.rect(card_surf, bg_color, (0, 0, CARD_W, CARD_H), border_radius=8)
         self.screen.blit(card_surf, (x, y))
 
-        # Borda colorida
+        # Borda simples e elegante
         border_color = ch["color"] if sel else C_BORDER
-        border_w     = 2 if not sel else 3
+        border_w     = 3 if sel else 1
         pygame.draw.rect(self.screen, border_color,
-                         (x, y, CARD_W, CARD_H), border_w, border_radius=10)
+                         (x, y, CARD_W, CARD_H), border_w, border_radius=8)
 
-        # Se selecionado: borda dupla brilhante animada
-        if sel:
-            pulse = int(40 + 30 * math.sin(self.frame * 0.1))
-            glow  = pygame.Surface((CARD_W + 12, CARD_H + 12), pygame.SRCALPHA)
-            pygame.draw.rect(glow, (*ch["color"], pulse),
-                             (0, 0, CARD_W + 12, CARD_H + 12), 4, border_radius=13)
-            self.screen.blit(glow, (x - 6, y - 6))
-
-        # Sprite do personagem no card (ESCALA e ANIMAÇÃO reduzida para caber no card)
-        thumb_w, thumb_h = CARD_W - 16, CARD_H - 50
+        # Sprite do personagem no card centralizado
+        thumb_h = int(CARD_H * 0.55)
+        thumb_w = int(thumb_h * 0.8)
         
         frame_list = self.sprites[idx]
         current_img = frame_list[(self.frame // 10) % len(frame_list)]
         thumb = pygame.transform.scale(current_img, (thumb_w, thumb_h))
         
-        self.screen.blit(thumb, (x + 8, y + 4))
+        cx = x + CARD_W//2 - thumb_w//2
+        self.screen.blit(thumb, (cx, y + 15))
 
-        # Nome
-        name_surf = self.f_tiny.render(ch["name"], True,
-                                       ch["color"] if sel else C_GRAY)
+        # Nome limpo (sem sombras e sem barras no card)
+        name_str = ch["name"]
+        if len(name_str) > 13: name_str = name_str[:11] + "..."
+        name_surf = self.f_tiny.render(name_str, True, C_WHITE if sel else C_GRAY)
+        
         nx = x + CARD_W // 2 - name_surf.get_width() // 2
-        self.screen.blit(name_surf, (nx, y + CARD_H - 40))
-
-        # Linha separadora
-        pygame.draw.line(self.screen, ch["color"] if sel else C_BORDER,
-                         (x + 8, y + CARD_H - 44),
-                         (x + CARD_W - 8, y + CARD_H - 44), 1)
-
-        # Barras de HP/Speed mini
-        draw_bar(self.screen, x + 8, y + CARD_H - 30,
-                 CARD_W - 16, 5, ch["hp"] / 130, C_HP_GREEN)
-        draw_bar(self.screen, x + 8, y + CARD_H - 18,
-                 CARD_W - 16, 5, ch["speed"] / 10, C_SP_BLUE)
-
-        labels = [
-            self.f_tiny.render("HP",  True, C_GRAY),
-            self.f_tiny.render("VEL", True, C_GRAY),
-        ]
-        self.screen.blit(labels[0], (x + 8,             y + CARD_H - 31))
-        self.screen.blit(labels[1], (x + 8,             y + CARD_H - 19))
+        self.screen.blit(name_surf, (nx, y + CARD_H - 30))
 
     # ── Painel de preview (personagem selecionado) ─────────
     def _draw_preview(self):
@@ -317,16 +269,15 @@ class CharacterSelectScreen:
         pw    = PREVIEW_W
         ph    = self.cards_y - py - 20
 
-        # Fundo do painel
+        # Fundo do painel limpo e minimalista (sem múltiplas bordas pulsantes)
         panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
-        pygame.draw.rect(panel, (*C_PANEL, 200), (0, 0, pw, ph), border_radius=12)
-        pygame.draw.rect(panel, (*ch["color"], 60), (0, 0, pw, ph), border_radius=12)
+        pygame.draw.rect(panel, (*C_PANEL, 230), (0, 0, pw, ph), border_radius=8)
         self.screen.blit(panel, (px, py))
-        pygame.draw.rect(self.screen, ch["color"],
-                         (px, py, pw, ph), 2, border_radius=12)
+        
+        # Borda discreta sólida
+        pygame.draw.rect(self.screen, ch["color"], (px, py, pw, ph), 2, border_radius=8)
 
-        # ── ESCALA + ROTAÇÃO do preview ──────────────────────
-        # Puxa o quadro de animação da lista baseado no frame do loop do jogo
+        # ── ESCALA do preview ──────────────────────
         frame_list = self.sprites[self.selected]
         current_img = frame_list[(self.frame // 10) % len(frame_list)]
         
@@ -334,23 +285,14 @@ class CharacterSelectScreen:
         preview_w = int(preview_h * 0.75)
         base_sprite = pygame.transform.scale(current_img, (preview_w, preview_h))
 
-        # ESCALA: aplica escala animada (pulsa quando muda de personagem)
         sc = self.preview_scale
         if sc != 1.0:
             sw2 = int(preview_w * sc)
             sh2 = int(preview_h * sc)
             base_sprite = pygame.transform.scale(base_sprite, (sw2, sh2))
 
-        # Aura de energia atrás do sprite
-        aura_r = int(preview_w * 0.6 + 15 * math.sin(self.frame * 0.07))
-        aura   = pygame.Surface((aura_r*2, aura_r*2), pygame.SRCALPHA)
-        pygame.draw.circle(aura, (*ch["color"], 30), (aura_r, aura_r), aura_r)
-        
-        # Mover o centro do personagem para a direita (fora da caixa de informações)
+        # Removemos a "aura esférica" atrás do personagem para deixar o palco livre
         sprite_cx = px + pw + 250
-        
-        self.screen.blit(aura, (sprite_cx - aura_r,
-                                py + ph//2 - aura_r - 20))
 
         cx_sprite = sprite_cx - base_sprite.get_width()//2
         cy_sprite = py + ph - base_sprite.get_height() - 10
