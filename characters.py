@@ -23,7 +23,7 @@ CHARACTERS = [
         "name":  "ICHIGO KUROSAKI",
         "title": "Shinigami Substituto",
         "hp":    110,
-        "speed": 6,
+        "speed": 8,
         "style": "Zangetsu",
         "desc": "Um humano com poderes de Shinigami e sua Katana Zangetsu.",
         "color": (255, 100, 0),
@@ -82,9 +82,9 @@ CHARACTERS = [
         "color": (255, 100, 40),
         "sprite": "assets/characters/sasuke.png",
         "anim_folder": os.path.join(_DIR, "sprites", "sasuke"),
-        "light":   {"name": "Soco Pesado",      "damage": 12, "cooldown": 28, "range": 85},
-        "medium":  {"name": "Chama Dracônica",  "damage": 20, "cooldown": 42, "range": 95},
-        "special": {"name": "Rugido do Dragão", "damage": 35, "cooldown": 80, "range": 240,
+        "light":   {"name": "Taijutsu",      "damage": 12, "cooldown": 28, "range": 85},
+        "medium":  {"name": "Taijutsu",  "damage": 20, "cooldown": 42, "range": 95},
+        "special": {"name": "Chidori", "damage": 35, "cooldown": 80, "range": 240,
                     "projectile": True},
     },
     {
@@ -138,7 +138,7 @@ ENEMIES = [
         "ai_aggression": 0.4,   # probabilidade de atacar por frame quando perto
         "ai_attack_range": 110, # distância para começar a atacar
     },
-    {   # Fase 2 — intermediário
+    {   # Fase 2 — intermediário (pain colocado como vilao na segunda fase)
         "id":    "uzumaki_nagato",
         "name":  "PAIN",
         "title": "Líder da Akatsuki",
