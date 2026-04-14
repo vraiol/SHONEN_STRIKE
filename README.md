@@ -1,8 +1,6 @@
 # SHONEN STRIKE (Anime Fighters)
 Contribuidores: Cauã Guerreiro, Douglas Gobitsch e Vinicius Raiol.
 
-![Menu Principal](imagens/foto%20menu.png)
-
 Um jogo de luta 2D desenvolvido em Python utilizando a biblioteca **Pygame**. Escolha seus personagens favoritos dos animes mais populares e enfrente uma campanha em 3 fases desafiadoras.
 
 ## 🎮 Sobre o Jogo
@@ -28,9 +26,9 @@ O **Shonen Strike** possui um sistema de combate rápido e dinâmico inspirado n
 
 ## 👹 Chefes da Campanha
 
-1. **Sosuke Aizen** (Fase 1: Templo das Chamas)
-2. **Pain** (Fase 2: Floresta das Sombras)
-3. **Donquixote Doflamingo** (Fase 3: Pico do Dragão)
+1. **Sosuke Aizen** (Fase 1: Soul Society)
+2. **Pain** (Fase 2: Templo Uchiha)
+3. **Donquixote Doflamingo** (Fase 3: Base Marineford)
 
 ## 💻 Requisitos e Instalação
 
