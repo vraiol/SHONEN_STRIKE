@@ -1,520 +1,524 @@
 # ============================================================
-#  character.py
-#  Classe base Character — usada tanto pelo jogador quanto
-#  pelos inimigos controlados por IA.
-#  Implementa: Translação, Reflexão, Escala
+#  fight.py
+#  Tela de luta: renderização do cenário, HUD e loop de combate.
 # ============================================================
 
 import pygame
 import math
 import os
-import re
+import sys
+
+from character import Character, STATE_DEAD, CHAR_W, CHAR_H, FLOOR_Y
+from combat    import CombatManager
+from enemy_ai  import EnemyAI
+from character_select import draw_pause_overlay
+
+SW, SH = 1000, 620
+
+# Paleta HUD
+C_HP_GREEN   = ( 60, 220,  80)
+C_HP_YELLOW  = (220, 200,  40)
+C_HP_RED     = (220,  50,  50)
+C_BG_HUD     = (  0,   0,   0, 160)
+C_WHITE      = (255, 255, 255)
+C_GRAY       = (100, 100, 120)
+C_GOLD       = (255, 200,  50)
+C_BLACK      = (  0,   0,   0)
+C_DARK       = ( 15,  10,  20)
+C_BORDER     = (200, 160,  40)
+C_LAG        = (255, 200, 100)   # cor da barra de dano atrasado
+C_HP_GLOW_HI = (120, 255, 160)   # topo do gradiente (HP alto)
+C_HP_GLOW_LO = (255,  60,  60)   # topo do gradiente (HP baixo)
 
 
-# ── Constantes de estado ──────────────────────────────────
-STATE_IDLE      = "idle"
-STATE_WALK      = "walk"
-STATE_JUMP      = "jump"
-STATE_CROUCH    = "crouch"
-STATE_ATTACK_L  = "attack_light"
-STATE_ATTACK_M  = "attack_medium"
-STATE_ATTACK_S  = "attack_special"
-STATE_HIT       = "hit"
-STATE_DEAD      = "dead"
-
-# Física
-GRAVITY      = 0.7
-FLOOR_Y      = 480   # Y do chão (definido em relação à tela 1000x620)
-JUMP_FORCE   = -16
-CHAR_W       = 64
-CHAR_H       = 96
+def _hp_color(ratio: float) -> tuple:
+    if ratio > 0.5:
+        return C_HP_GREEN
+    if ratio > 0.25:
+        return C_HP_YELLOW
+    return C_HP_RED
 
 
-def _load_sprite(path, w, h, color):
-    """Carrega sprite externo ou cria placeholder colorido."""
+def _lerp_color(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def _draw_rounded_rect(surf, color, rect, radius=6, border=0, border_color=None):
+    """Desenha retângulo com cantos arredondados."""
+    pygame.draw.rect(surf, color, rect, border_radius=radius)
+    if border and border_color:
+        pygame.draw.rect(surf, border_color, rect, border, border_radius=radius)
+
+
+def _load_bg(stage_data: dict) -> pygame.Surface:
+    """Carrega cenário ou gera um procedural como fallback."""
+    path = stage_data.get("background", "")
     if os.path.exists(path):
         try:
-            img = pygame.image.load(path).convert_alpha()
-            return pygame.transform.scale(img, (w, h))
+            img = pygame.image.load(path).convert()
+            return pygame.transform.scale(img, (SW, SH))
         except Exception:
             pass
-    # Placeholder: silhueta geométrica do lutador
-    surf = pygame.Surface((w, h), pygame.SRCALPHA)
-    # Sombra do chão
-    pygame.draw.ellipse(surf, (0, 0, 0, 60), (w//4, h - 10, w//2, 8))
-    # Pernas
-    lw = w // 5
-    pygame.draw.rect(surf, tuple(max(0, c-50) for c in color),
-                     (w//2 - lw - 2, h - h//3, lw, h//3 - 8), border_radius=4)
-    pygame.draw.rect(surf, tuple(max(0, c-50) for c in color),
-                     (w//2 + 2, h - h//3, lw, h//3 - 8), border_radius=4)
-    # Corpo
-    bw, bh = w * 2//3, h * 2//5
-    pygame.draw.rect(surf, color,
-                     (w//2 - bw//2, h - h//3 - bh + 4, bw, bh), border_radius=6)
-    # Cabeça
-    pygame.draw.circle(surf, color, (w//2, h - h//3 - bh - h//8), h//7)
-    # Braços
-    pygame.draw.rect(surf, color,
-                     (w//2 - bw//2 - 10, h - h//3 - bh + 8, 10, bh//2), border_radius=4)
-    pygame.draw.rect(surf, color,
-                     (w//2 + bw//2,      h - h//3 - bh + 8, 10, bh//2), border_radius=4)
-    # Brilho lateral
-    glow = pygame.Surface((w, h), pygame.SRCALPHA)
-    pygame.draw.circle(glow, (*color, 25), (w//2, h//2), w//2)
-    surf.blit(glow, (0, 0))
+
+    # Fallback procedural estilo Deserto
+    surf = pygame.Surface((SW, SH))
+    
+    # Céu (gradiente)
+    for y in range(SH):
+        t = y / SH
+        r = int(100 + (180 - 100) * t)
+        g = int(180 + (220 - 180) * t)
+        b = 255
+        pygame.draw.line(surf, (r, g, b), (0, y), (SW, y))
+
+    import random
+    random.seed(42) # semente fixa para o mesmo cenário
+
+    # Nuvens 
+    for _ in range(12):
+        cx = random.randint(0, SW)
+        cy = random.randint(20, 200)
+        for _ in range(5):
+            pygame.draw.circle(surf, (255, 255, 255, 180),
+                               (cx + random.randint(-40, 40), cy + random.randint(-20, 20)),
+                               random.randint(20, 45))
+
+    # Montanhas (brown)
+    points1 = [(0, FLOOR_Y), (250, 250), (600, FLOOR_Y)]
+    pygame.draw.polygon(surf, (150, 90, 45), points1)
+    points2 = [(400, FLOOR_Y), (750, 280), (1100, FLOOR_Y)]
+    pygame.draw.polygon(surf, (130, 75, 35), points2)
+    points3 = [(-100, FLOOR_Y), (100, 350), (400, FLOOR_Y)]
+    pygame.draw.polygon(surf, (160, 100, 50), points3)
+
+    # Chão estilo deserto com rachaduras
+    pygame.draw.rect(surf, (170, 110, 55), (0, FLOOR_Y, SW, SH - FLOOR_Y))
+    for _ in range(40):
+        x1 = random.randint(0, SW)
+        y1 = random.randint(FLOOR_Y, SH)
+        x2 = x1 + random.randint(-25, 25)
+        y2 = y1 + random.randint(10, 25)
+        if y2 > SH: y2 = SH
+        pygame.draw.line(surf, (110, 60, 25), (x1, y1), (x2, y2), 2)
+
+    # Pedras
+    for _ in range(15):
+        px = random.randint(0, SW)
+        py = random.randint(FLOOR_Y + 5, SH - 15)
+        pw = random.randint(30, 60)
+        ph = random.randint(15, 25)
+        pygame.draw.ellipse(surf, (140, 85, 45), (px, py, pw, ph))
+
     return surf
 
 
-def _load_animations_from_folder(base_folder, colorkey):
-    """
-    Lê pastas com quadros manuais nomeados e as mapeia para os estados do jogo.
-    Se a pasta não tiver frames, retorna lista vazia para o estado correspondente (causando fallback).
-    """
-    if not os.path.exists(base_folder):
-        return {}
+# ─────────────────────────────────────────────────────────
+#  HUD
+# ─────────────────────────────────────────────────────────
+class HUD:
+    BAR_W   = 390
+    BAR_H   = 22
+    BAR_Y   = 14
+    PAD     = 12
+    NAME_H  = 20   # altura do bloco de nome
+    TOTAL_H = 70   # altura total do painel HUD de cada lado
 
-    FOLDER_MAP = {
-        STATE_IDLE: "stance",
-        STATE_WALK: "run",
-        STATE_JUMP: "jump",
-        STATE_CROUCH: "stance", # fallback para croutch se não tiver
-        STATE_HIT:  "taking damage",
-        STATE_DEAD: "taking damage",
-        STATE_ATTACK_L: "attack combo",
-        STATE_ATTACK_M: "attack combo",
-        STATE_ATTACK_S: "special movie",
-    }
-    
-    animations = {}
-    for state, folder_name in FOLDER_MAP.items():
-        folder_path = os.path.join(base_folder, folder_name)
-        frames = []
-        if os.path.isdir(folder_path):
-            valid_exts = ('.png', '.jpg', '.jpeg')
-            raw_files = [f for f in os.listdir(folder_path) if f.lower().endswith(valid_exts)]
-            # Natural sort para que 10.png venha depois de 2.png
-            files = sorted(raw_files, key=lambda s: [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', s)])
-            
-            for fname in files:
-                fpath = os.path.join(folder_path, fname)
-                try:
-                    img = pygame.image.load(fpath).convert_alpha()
-                    
-                    target_color = colorkey if colorkey else img.get_at((0, 0))
-                    pix = pygame.PixelArray(img)
-                    try:
-                        pix.replace(target_color, (0, 0, 0, 0))
-                    except ValueError:
-                        pass
-                    del pix # Destrava a imagem na memória
-                        
-                    frames.append(img)
-                except Exception:
-                    continue
-        animations[state] = frames
-        
-    return animations
+    def __init__(self):
+        self.f_name  = pygame.font.SysFont("impact", 18, bold=True)
+        self.f_timer = pygame.font.SysFont("impact", 38, bold=True)
+        self.f_hp    = pygame.font.SysFont("impact", 13)
+        # Dano atrasado (lag bar) — rastreia o HP anterior
+        self._p_lag  = 1.0   # ratio atual da lag bar do player
+        self._e_lag  = 1.0   # ratio atual da lag bar do enemy
+        self._LAG_SPEED = 0.008  # velocidade de drain da lag
 
+    def draw(self, screen, player: Character, enemy: Character,
+             phase: int, total_phases: int, timer_s: int | None = None):
 
-class Character:
-    """
-    Classe base compartilhada por jogador e inimigos.
-    Gerencia física (y para pulo, x para movimento), máquina de estados,
-    ataques (hitboxes) e draw (animação manual por frames em pasta ou estático).
-    """
-    def __init__(self, data: dict, x: float, facing_right: bool = True):
-        self.data         = data
-        self.name         = data["name"]
-        self.max_hp       = data["hp"]
-        self.hp           = data["hp"]
-        self.base_speed   = data["speed"]
+        p_ratio = max(0.0, player.hp / player.max_hp)
+        e_ratio = max(0.0, enemy.hp  / enemy.max_hp)
 
-        self.x   = float(x)
-        self.y   = float(FLOOR_Y)
-        self.vx  = 0.0
-        self.vy  = 0.0
-
-        self.facing_right = facing_right
-
-        self.base_scale    = 1.0
-        self.current_scale = 1.0
-        self.target_scale  = 1.0
-
-        self.state       = STATE_IDLE
-        self.on_ground   = True
-        self.crouching   = False
-
-        self.cd_light   = 0
-        self.cd_medium  = 0
-        self.cd_special = 0
-
-        self.state_timer = 0
-
-        self.active_hitbox = None
-        self.hitbox_timer  = 0
-
-        self.projectiles = []
-        self.hit_timer  = 0
-        self.dead_timer = 0
-        self.attack_timer = 0
-
-        self.sprite_base = _load_sprite(
-            data.get("sprite", ""), CHAR_W, CHAR_H, data["color"])
-        self.color = data["color"]
-
-        self.animations = {}
-        self.current_anim_frames = []
-        self.frame_index = 0
-        self.anim_timer = 0
-        self._last_state = STATE_IDLE
-        self.sprite_scale_factor = data.get("sprite_scale", 1.8)
-        
-        if "anim_folder" in data:
-            self.animations = _load_animations_from_folder(
-                data["anim_folder"], data.get("colorkey", None)
-            )
-            self._set_anim(STATE_IDLE)
-
-        self.arena_left  = 60
-        self.arena_right = 940
-
-    def _set_anim(self, state: str):
-        if state in self.animations:
-            if self.current_anim_frames != self.animations[state]:
-                self.current_anim_frames = self.animations[state]
-                self.frame_index = 0
-                self.anim_timer = 0
-
-    # ─────────────────────────────────────────────────────
-    #  PROPRIEDADES
-    # ─────────────────────────────────────────────────────
-
-    @property
-    def alive(self) -> bool:
-        return self.hp > 0
-
-    @property
-    def is_attacking(self) -> bool:
-        return self.state in (STATE_ATTACK_L, STATE_ATTACK_M, STATE_ATTACK_S)
-
-    @property
-    def center_x(self) -> float:
-        return self.x + CHAR_W // 2
-
-    @property
-    def body_rect(self) -> pygame.Rect:
-        return pygame.Rect(int(self.x), int(self.y) - CHAR_H,
-                           CHAR_W, CHAR_H)
-
-    # ─────────────────────────────────────────────────────
-    #  MOVIMENTAÇÃO (TRANSLAÇÃO)
-    # ─────────────────────────────────────────────────────
-
-    def move_left(self):
-        """
-        TRANSLAÇÃO: decrementa x (move para esquerda).
-        REFLEXÃO: atualiza direção para esquerda.
-        """
-        if self.is_attacking or self.state == STATE_HIT:
-            return
-        self.vx           = -self.base_speed
-        self.facing_right = False          # REFLEXÃO
-        if self.on_ground:
-            self.state = STATE_WALK
-
-    def move_right(self):
-        """
-        TRANSLAÇÃO: incrementa x (move para direita).
-        REFLEXÃO: atualiza direção para direita.
-        """
-        if self.is_attacking or self.state == STATE_HIT:
-            return
-        self.vx           = self.base_speed
-        self.facing_right = True           # REFLEXÃO
-        if self.on_ground:
-            self.state = STATE_WALK
-
-    def stop_horizontal(self):
-        self.vx = 0.0
-        if self.on_ground and self.state == STATE_WALK:
-            self.state = STATE_IDLE
-
-    def jump(self):
-        """TRANSLAÇÃO: aplica força vertical para pular."""
-        if not self.on_ground or self.is_attacking:
-            return
-        self.vy       = JUMP_FORCE
-        self.on_ground = False
-        self.state    = STATE_JUMP
-
-    def crouch(self):
-        if self.on_ground and not self.is_attacking:
-            self.crouching = True
-            self.state     = STATE_CROUCH
-
-    def stand_up(self):
-        self.crouching = False
-        if self.state == STATE_CROUCH:
-            self.state = STATE_IDLE
-
-    # ─────────────────────────────────────────────────────
-    #  ATAQUES — sistema genérico (player e IA usam igual)
-    # ─────────────────────────────────────────────────────
-
-    def _can_attack(self) -> bool:
-        return (self.alive
-                and not self.is_attacking
-                and self.state != STATE_HIT
-                and self.state != STATE_DEAD)
-
-    def _build_hitbox(self, attack_range: int) -> pygame.Rect:
-        """Cria hitbox na frente do personagem."""
-        if self.facing_right:
-            hx = int(self.x + CHAR_W)
+        # Avançar lag bars
+        if self._p_lag > p_ratio:
+            self._p_lag = max(p_ratio, self._p_lag - self.LAG_SPEED)
         else:
-            hx = int(self.x - attack_range)
-        return pygame.Rect(hx, int(self.y) - CHAR_H + 10,
-                           attack_range, CHAR_H - 20)
-
-    def attack_light(self):
-        """Golpe leve — rápido, pouco dano."""
-        if not self._can_attack() or self.cd_light > 0:
-            return False
-        atk            = self.data["light"]
-        self.state     = STATE_ATTACK_L
-        
-        anim_frames = self.animations.get(STATE_ATTACK_L, [])
-        if anim_frames:
-            duracao = len(anim_frames) * 8
-            self.state_timer = duracao
-            self.cd_light = max(atk["cooldown"], duracao)
-            self.hitbox_timer = duracao // 3
+            self._p_lag = p_ratio
+        if self._e_lag > e_ratio:
+            self._e_lag = max(e_ratio, self._e_lag - self.LAG_SPEED)
         else:
-            self.state_timer = atk["cooldown"]
-            self.cd_light  = atk["cooldown"]
-            self.hitbox_timer  = atk["cooldown"] // 3
-            
-        self.active_hitbox = self._build_hitbox(atk["range"])
-        return True
+            self._e_lag = e_ratio
 
-    def attack_medium(self):
-        """Golpe médio — equilibrado."""
-        if not self._can_attack() or self.cd_medium > 0:
-            return False
-        atk            = self.data["medium"]
-        self.state     = STATE_ATTACK_M
-        
-        anim_frames = self.animations.get(STATE_ATTACK_M, [])
-        if anim_frames:
-            duracao = len(anim_frames) * 8
-            self.state_timer = duracao
-            self.cd_medium = max(atk["cooldown"], duracao)
-            self.hitbox_timer = duracao // 3
+        # ── Painel esquerdo (Player) ──────────────────────
+        px = self.PAD
+        py = self.BAR_Y
+        self._draw_panel(screen, px, py, self.BAR_W, player, p_ratio,
+                         self._p_lag, left=True, label="P1")
+
+        # ── Painel direito (Enemy) ────────────────────────
+        ex = SW - self.PAD - self.BAR_W
+        ey = self.BAR_Y
+        self._draw_panel(screen, ex, ey, self.BAR_W, enemy, e_ratio,
+                         self._e_lag, left=False, label="CPU")
+
+        # ── Timer central ────────────────────────────────
+        if timer_s is not None:
+            self._draw_timer(screen, timer_s)
+
+        # ── Fase (indicador de bolinhas) ──────────────────
+        self._draw_phase(screen, phase, total_phases)
+
+    # ------------------------------------------------------------------
+    LAG_SPEED = 0.008
+
+    def _draw_panel(self, screen, x, y, w, char, ratio, lag_ratio, left, label):
+        panel_h = self.NAME_H + 6 + self.BAR_H + 2
+        # Sombra / fundo escuro do painel inteiro
+        shadow = pygame.Surface((w + 4, panel_h + 4), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 120))
+        screen.blit(shadow, (x - 2, y - 2))
+
+        # ── Faixa do nome ──────────────────────────────
+        name_rect = pygame.Rect(x, y, w, self.NAME_H)
+        # Fundo da faixa: gradiente escuro com borda dourada
+        name_bg = pygame.Surface((w, self.NAME_H), pygame.SRCALPHA)
+        for i in range(self.NAME_H):
+            t = i / self.NAME_H
+            c = _lerp_color((30, 20, 40), (15, 10, 25), t)
+            pygame.draw.line(name_bg, c, (0, i), (w, i))
+        screen.blit(name_bg, (x, y))
+        pygame.draw.rect(screen, C_BORDER, name_rect, 1, border_radius=3)
+
+        # Linha decorativa dourada abaixo do nome
+        pygame.draw.line(screen, C_GOLD, (x, y + self.NAME_H), (x + w, y + self.NAME_H), 1)
+
+        # Texto do nome
+        char_name = char.data.get("name", label)
+        # Abreviar se muito longo
+        if len(char_name) > 22:
+            char_name = char_name[:21] + "."
+        name_surf = self.f_name.render(char_name, True, C_GOLD)
+        if not left:
+            # Espelhar alinhamento para o lado direito
+            screen.blit(name_surf, (x + w - name_surf.get_width() - 6, y + 1))
         else:
-            self.state_timer = atk["cooldown"]
-            self.cd_medium = atk["cooldown"]
-            self.hitbox_timer  = atk["cooldown"] // 3
-            
-        self.active_hitbox = self._build_hitbox(atk["range"])
-        return True
+            screen.blit(name_surf, (x + 6, y + 1))
 
-    def attack_special(self):
+        # Tag P1/CPU pequena no canto oposto
+        tag_surf = self.f_hp.render(label, True, (180, 180, 180))
+        if left:
+            screen.blit(tag_surf, (x + w - tag_surf.get_width() - 5, y + 3))
+        else:
+            screen.blit(tag_surf, (x + 5, y + 3))
+
+        # ── Barra de HP ─────────────────────────────────
+        bar_y = y + self.NAME_H + 5
+        bar_rect = pygame.Rect(x, bar_y, w, self.BAR_H)
+
+        # Fundo da barra (preto profundo)
+        pygame.draw.rect(screen, (10, 8, 15), bar_rect, border_radius=4)
+
+        # Lag bar (laranja — dano atrasado)
+        lag_w = int(w * lag_ratio)
+        if lag_w > 0:
+            lag_rect = (x if left else x + w - lag_w, bar_y, lag_w, self.BAR_H)
+            pygame.draw.rect(screen, C_LAG, lag_rect, border_radius=4)
+
+        # Barra de HP principal com gradiente vertical
+        hp_w = int(w * ratio)
+        if hp_w > 0:
+            hp_color_bot = _hp_color(ratio)
+            hp_color_top = _lerp_color(hp_color_bot, C_WHITE, 0.45)
+            hp_surf = pygame.Surface((hp_w, self.BAR_H), pygame.SRCALPHA)
+            for i in range(self.BAR_H):
+                t = i / max(1, self.BAR_H - 1)
+                col = _lerp_color(hp_color_top, hp_color_bot, t)
+                pygame.draw.line(hp_surf, col, (0, i), (hp_w, i))
+            # Reflexo brilhante no topo
+            hl_h = max(2, self.BAR_H // 4)
+            hl = pygame.Surface((hp_w, hl_h), pygame.SRCALPHA)
+            hl.fill((255, 255, 255, 55))
+            hp_surf.blit(hl, (0, 0))
+            hp_x = x if left else x + w - hp_w
+            screen.blit(hp_surf, (hp_x, bar_y))
+
+        # Borda dourada da barra
+        pygame.draw.rect(screen, C_BORDER, bar_rect, 2, border_radius=4)
+
+        # Linhas de divisão (25% e 50%)
+        for frac in (0.25, 0.5, 0.75):
+            div_x = x + int(w * frac)
+            pygame.draw.line(screen, (60, 45, 80), (div_x, bar_y + 1), (div_x, bar_y + self.BAR_H - 2), 1)
+
+        # HP numérico
+        hp_str = f"{max(0, char.hp)} / {char.max_hp}"
+        hp_txt = self.f_hp.render(hp_str, True, (200, 200, 200))
+        hp_txt_x = x + 6 if left else x + w - hp_txt.get_width() - 6
+        screen.blit(hp_txt, (hp_txt_x, bar_y + (self.BAR_H - hp_txt.get_height()) // 2))
+
+    def _draw_timer(self, screen, timer_s):
+        """Timer central com moldura anime."""
+        cx = SW // 2
+        ty = self.BAR_Y
+
+        # Moldura do timer
+        box_w, box_h = 74, 52
+        box_x = cx - box_w // 2
+
+        # Fundo escuro semi-transparente
+        box_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        for i in range(box_h):
+            t = i / box_h
+            c = _lerp_color((35, 20, 50), (15, 8, 25), t) + (210,)
+            pygame.draw.line(box_surf, c, (0, i), (box_w, i))
+        screen.blit(box_surf, (box_x, ty))
+
+        # Borda dourada
+        pygame.draw.rect(screen, C_GOLD, (box_x, ty, box_w, box_h), 2, border_radius=5)
+        # Linha decorativa interior
+        pygame.draw.rect(screen, C_BORDER, (box_x + 3, ty + 3, box_w - 6, box_h - 6), 1, border_radius=3)
+
+        # Número
+        urgent = timer_s <= 10
+        color = (255, 60, 60) if urgent else C_WHITE
+        txt = self.f_timer.render(str(timer_s), True, color)
+        screen.blit(txt, txt.get_rect(center=(cx, ty + box_h // 2)))
+
+        # Sombra de texto para legibilidade
+        shadow_txt = self.f_timer.render(str(timer_s), True, (0, 0, 0))
+        # (renderizado atrás — reposicionamos ambos)
+        screen.blit(shadow_txt, shadow_txt.get_rect(center=(cx + 2, ty + box_h // 2 + 2)))
+        screen.blit(txt, txt.get_rect(center=(cx, ty + box_h // 2)))
+
+    def _draw_phase(self, screen, phase, total):
+        """Bolinhas indicando a fase atual embaixo do timer."""
+        cx = SW // 2
+        dot_y = self.BAR_Y + 56
+        spacing = 14
+        total_w = (total - 1) * spacing
+        start_x = cx - total_w // 2
+        for i in range(total):
+            dx = start_x + i * spacing
+            filled = (i < phase)
+            color = C_GOLD if filled else (60, 50, 80)
+            pygame.draw.circle(screen, color, (dx, dot_y), 5)
+            pygame.draw.circle(screen, C_BORDER, (dx, dot_y), 5, 1)
+
+
+# ─────────────────────────────────────────────────────────
+#  TELA DE LUTA
+# ─────────────────────────────────────────────────────────
+class FightScreen:
+
+    FIGHT_TIMER = 99   # segundos por round (None = sem limite)
+
+    def __init__(self, screen, clock):
+        self.screen  = screen
+        self.clock   = clock
+        self.hud     = HUD()
+        self.combat  = CombatManager()
+        self.combat.set_font(pygame.font.SysFont("impact", 18, bold=True))
+
+    def run(self, player_char: Character, enemy_char: Character,
+            stage_data: dict, phase: int, total_phases: int) -> str:
         """
-        Golpe especial — poderoso, com projétil.
-        ESCALA: personagem aumenta temporariamente ao usar o especial.
+        Executa uma luta completa.
+        Retorna: "player_win", "enemy_win" ou "timeout_draw"
         """
-        if not self._can_attack() or self.cd_special > 0:
-            return False
-        atk             = self.data["special"]
-        self.state      = STATE_ATTACK_S
-        
-        anim_frames = self.animations.get(STATE_ATTACK_S, [])
-        if anim_frames:
-            duracao = len(anim_frames) * 14
-            self.state_timer = duracao
-            self.cd_special = max(atk["cooldown"], duracao)
-            self.hitbox_timer = duracao // 2
-        else:
-            self.state_timer  = atk["cooldown"]
-            self.cd_special = atk["cooldown"]
-            self.hitbox_timer  = atk["cooldown"] // 2
-            
-        self.active_hitbox = self._build_hitbox(atk["range"])
+        self.combat.reset()
 
-        # ESCALA: aumentar personagem temporariamente no especial
-        self.target_scale = 1.35
+        bg      = _load_bg(stage_data)
+        ai      = EnemyAI(enemy_char,
+                          aggression   = stage_data.get("ai_aggression",  0.5),
+                          attack_range = stage_data.get("ai_attack_range", 110))
 
-        return True
+        # Posicionar personagens
+        player_char.x = 150.0
+        player_char.y = float(FLOOR_Y)
+        enemy_char.x  = SW - 150.0 - CHAR_W
+        enemy_char.y  = float(FLOOR_Y)
+        player_char.facing_right = True
+        enemy_char.facing_right  = False
 
-    # ─────────────────────────────────────────────────────
-    #  RECEBER DANO
-    # ─────────────────────────────────────────────────────
+        frame       = 0
+        timer_s     = self.FIGHT_TIMER
+        timer_frame = 0
 
-    def take_damage(self, amount: int, is_special: bool = False):
-        if not self.alive:
-            return
-        self.hp = max(0, self.hp - amount)
-        self.state       = STATE_HIT
-        
-        anim_frames = self.animations.get(STATE_HIT, [])
-        if is_special and anim_frames:
-            duracao = len(anim_frames) * 8
-            self.state_timer = duracao
-            self.hit_timer   = duracao
-        else:
-            self.state_timer = 18
-            self.hit_timer   = 18
-            
-        # Reinicia a animação de hit
-        self.current_anim_frames = anim_frames
-        self.frame_index = 0
-        self.anim_timer = 0
-            
-        self.active_hitbox = None
+        # Contagem regressiva de início
+        self._show_countdown(bg, player_char, enemy_char, stage_data, phase, total_phases)
 
-        # Knockback
-        knock = 8.0 if is_special else 4.0
-        self.vx = knock if self.facing_right else -knock
-        
-        if self.hp <= 0:
-            self.state = STATE_DEAD
+        while True:
+            self.clock.tick(60)
 
-    # ─────────────────────────────────────────────────────
-    #  UPDATE
-    # ─────────────────────────────────────────────────────
+            # ── Eventos ───────────────────────────────────
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
+                        action = self._show_pause_menu(bg, player_char, enemy_char, phase, total_phases, timer_s)
+                        if action == "quit":
+                            return "quit"
 
-    def update(self):
-        # Transição de animação ao mudar de estado
-        if self.state != self._last_state:
-            self._set_anim(self.state)
-            self._last_state = self.state
+            # ── Input do jogador ──────────────────────────
+            if player_char.alive:
+                self._handle_player_input(player_char)
 
-        # Update de frames da animação
-        if self.current_anim_frames and len(self.current_anim_frames) > 0:
-            self.anim_timer += 1
-            
-            # Dinâmica de velocidade: Especial muito mais lento
-            speed_limit = 14 if self.state == STATE_ATTACK_S else 8
-            
-            if self.anim_timer >= speed_limit:
-                self.anim_timer = 0
-                self.frame_index += 1
-                
-                # Se for ataque, trava no último frame (não repete o loop inteiro)
-                if self.is_attacking:
-                    self.frame_index = min(self.frame_index, len(self.current_anim_frames) - 1)
+            # ── IA do inimigo ─────────────────────────────
+            if enemy_char.alive:
+                ai.update(player_char, self.combat)
+
+            # ── Update dos personagens ────────────────────
+            player_char.update()
+            enemy_char.update()
+
+            # ── Lançar projétil do especial no momento certo ────
+            for char in (player_char, enemy_char):
+                if char.state == "attack_special":
+                    if not getattr(char, "_proj_spawned", False):
+                        # Dispara quando chegar na metade da animação (ou quando timer cair abaixo de metade)
+                        half = char.state_timer <= char.data["special"].get("cooldown", 60) // 2
+                        if half and char.data["special"].get("projectile"):
+                            self.combat.spawn_projectile(char)
+                            char._proj_spawned = True
                 else:
-                    self.frame_index = self.frame_index % len(self.current_anim_frames)
+                    char._proj_spawned = False
 
-        if self.state == STATE_DEAD:
-            self.dead_timer += 1
-            return
+            # ── Update do combate ─────────────────────────
+            self.combat.update(player_char, enemy_char)
 
-        # ── Física: gravidade e solo ──────────────────────
-        # TRANSLAÇÃO: aplicar velocidade à posição (x, y)
-        if not self.on_ground:
-            self.vy += GRAVITY
+            # ── Timer ─────────────────────────────────────
+            timer_frame += 1
+            if timer_frame >= 60:
+                timer_frame = 0
+                timer_s = max(0, timer_s - 1)
 
-        self.x += self.vx
-        self.y += self.vy
+            # ── Checar fim de luta ────────────────────────
+            if not player_char.alive:
+                self._show_ko(bg, player_char, enemy_char, stage_data, phase, total_phases, "KO!")
+                return "enemy_win"
+            if not enemy_char.alive:
+                self._show_ko(bg, player_char, enemy_char, stage_data, phase, total_phases, "KO!")
+                return "player_win"
+            if timer_s == 0:
+                # Timeout: quem tiver mais HP vence
+                if player_char.hp >= enemy_char.hp:
+                    return "player_win"
+                return "enemy_win"
 
-        # Aterrissar
-        if self.y >= FLOOR_Y:
-            self.y        = FLOOR_Y
-            self.vy       = 0.0
-            self.on_ground = True
-            if self.state == STATE_JUMP:
-                self.state = STATE_IDLE
+            # ── Renderizar ────────────────────────────────
+            self.screen.blit(bg, (0, 0))
+            enemy_char.draw(self.screen)
+            player_char.draw(self.screen)
+            self.combat.draw(self.screen)
+            self.hud.draw(self.screen, player_char, enemy_char,
+                          phase, total_phases, timer_s)
 
-        # Limites horizontais da arena
-        self.x = max(self.arena_left, min(self.arena_right - CHAR_W, self.x))
 
-        # Atrito horizontal
-        if self.on_ground:
-            self.vx *= 0.75
-
-        # ── Timers de estado e cooldown ───────────────────
-        if self.state_timer > 0:
-            self.state_timer -= 1
-            if self.state_timer == 0 and self.is_attacking:
-                self.state = STATE_IDLE
-
-        if self.hit_timer > 0:
-            self.hit_timer -= 1
-            if self.hit_timer == 0 and self.state == STATE_HIT:
-                self.state = STATE_IDLE
-
-        if self.hitbox_timer > 0:
-            self.hitbox_timer -= 1
-        else:
-            self.active_hitbox = None
-
-        if self.cd_light  > 0: self.cd_light  -= 1
-        if self.cd_medium > 0: self.cd_medium -= 1
-        if self.cd_special > 0: self.cd_special -= 1
-
-        # ── ESCALA: interpolação suave de volta a 1.0 ─────
-        self.current_scale += (self.target_scale - self.current_scale) * 0.15
-        if abs(self.current_scale - self.target_scale) < 0.005:
-            if self.target_scale != 1.0:
-                self.target_scale = 1.0   # volta ao normal após atingir o pico
+            pygame.display.flip()
+            frame += 1
 
     # ─────────────────────────────────────────────────────
-    #  RENDERIZAÇÃO
+    #  INPUT DO JOGADOR
     # ─────────────────────────────────────────────────────
+    def _handle_player_input(self, player: Character):
+        keys = pygame.key.get_pressed()
 
-    def draw(self, screen: pygame.Surface):
-        # ── ESCOLHER E CORTAR FRAME MANUAL ────────────────
-        surf = None
-        if self.current_anim_frames and len(self.current_anim_frames) > 0:
-            surf = self.current_anim_frames[self.frame_index]
-        
-        # Fallback se não tiver sprite animado
-        if surf is None:
-            surf = self.sprite_base
+        # Movimento
+        moved = False
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            player.move_left();  moved = True
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            player.move_right(); moved = True
+        if not moved:
+            player.stop_horizontal()
 
-        # ── ESCALA: redimensionar proporcional ────────────
-        valid_anim = self.current_anim_frames and len(self.current_anim_frames) > 0
-        if valid_anim:
-            factor = self.sprite_scale_factor * self.current_scale
-            sw = int(surf.get_width() * factor)
-            sh = int(surf.get_height() * factor)
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            player.jump()
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            player.crouch()
         else:
-            sc  = self.current_scale
-            sw  = int(CHAR_W * sc)
-            sh  = int(CHAR_H * sc)
-            
-        scaled_surf = pygame.transform.scale(surf, (sw, sh))
+            player.stand_up()
 
-        # ── REFLEXÃO: espelhar se virado para esquerda ────
-        if not self.facing_right:
-            scaled_surf = pygame.transform.flip(scaled_surf, True, False)
+        # Ataques (eventos processados no loop de eventos para evitar repetição)
+        # Aqui verificamos pressionamento contínuo apenas para feedback imediato;
+        # o cooldown interno do Character evita spam.
+        if keys[pygame.K_j]:
+            player.attack_light()
+        if keys[pygame.K_k]:
+            player.attack_medium()
+        if keys[pygame.K_l]:
+            player.attack_special()
 
-        # Piscar em vermelho ao tomar dano
-        if self.hit_timer > 0 and (self.hit_timer // 3) % 2 == 0:
-            tint = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            tint.fill((255, 50, 50, 120))
-            scaled_surf.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    # ─────────────────────────────────────────────────────
+    #  CONTAGEM REGRESSIVA
+    # ─────────────────────────────────────────────────────
+    def _show_countdown(self, bg, player, enemy, stage_data, phase, total_phases):
+        f_count = pygame.font.SysFont("impact", 120, bold=True)
+        f_fight = pygame.font.SysFont("impact",  80, bold=True)
 
-        # Posicionar sprite (pés ancorados no piso, X centralizado)
-        draw_x = int(self.x) + (CHAR_W - sw) // 2
-        draw_y = int(self.y) - sh
-        screen.blit(scaled_surf, (draw_x, draw_y))
+        for label, frames in [("3", 40), ("2", 40), ("1", 40), ("LUTA!", 50)]:
+            for _ in range(frames):
+                self.clock.tick(60)
+                self.screen.blit(bg, (0, 0))
+                enemy.draw(self.screen)
+                player.draw(self.screen)
+                self.hud.draw(self.screen, player, enemy,
+                              phase, total_phases, self.FIGHT_TIMER)
 
-        # Sombra no chão
-        shadow = pygame.Surface((max(CHAR_W, sw - 10), 10), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow, (0, 0, 0, 80), (0, 0, max(CHAR_W, sw - 10), 10))
-        sh_x = int(self.x) + (CHAR_W - shadow.get_width()) // 2
-        screen.blit(shadow, (sh_x, int(self.y) - 4))
+                # ESCALA: número da contagem pulsa ao aparecer
+                # (aqui usamos tamanho fixo por simplicidade, mas
+                #  a escala visual é aplicada via transform.scale abaixo)
+                pulse = 1.0 + 0.02 * math.sin(_ * 0.3)
+                is_fight = label == "LUTA!"
+                color = (255, 60, 60) if is_fight else (255, 220, 50)
+                raw   = f_fight.render(label, True, color) if is_fight \
+                        else f_count.render(label, True, color)
+                sw2 = int(raw.get_width()  * pulse)
+                sh2 = int(raw.get_height() * pulse)
+                # ESCALA aplicada via pygame.transform.scale
+                scaled = pygame.transform.scale(raw, (sw2, sh2))
+                self.screen.blit(scaled, (SW//2 - sw2//2, SH//2 - sh2//2))
 
-        # Debug: hitbox ativa (descomente para ver)
-        # if self.active_hitbox:
-        #     pygame.draw.rect(screen, (255, 0, 0), self.active_hitbox, 2)
+                pygame.display.flip()
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit(); sys.exit()
 
-    def draw_name_tag(self, screen, font, side="left"):
-        """Exibe nome acima do personagem."""
-        txt   = font.render(self.name, True, self.color)
-        tag_x = int(self.x) + CHAR_W // 2 - txt.get_width() // 2
-        tag_y = int(self.y) - CHAR_H - 22
-        screen.blit(txt, (tag_x, tag_y))
+    # ─────────────────────────────────────────────────────
+    #  TELA DE KO
+    # ─────────────────────────────────────────────────────
+    def _show_ko(self, bg, player, enemy, stage_data, phase, total_phases, label):
+        f_ko = pygame.font.SysFont("impact", 100, bold=True)
+        for i in range(90):
+            self.clock.tick(60)
+            self.screen.blit(bg, (0, 0))
+            enemy.draw(self.screen)
+            player.draw(self.screen)
+            self.hud.draw(self.screen, player, enemy, phase, total_phases)
+
+            # ESCALA: "KO!" cresce ao aparecer
+            scale = min(1.0, 0.3 + i * 0.025)
+            raw   = f_ko.render(label, True, (255, 60, 60))
+            sw2   = int(raw.get_width()  * scale)
+            sh2   = int(raw.get_height() * scale)
+            # ESCALA via pygame.transform.scale
+            scaled = pygame.transform.scale(raw, (sw2, sh2))
+            self.screen.blit(scaled, (SW//2 - sw2//2, SH//2 - sh2//2))
+
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit(); sys.exit()
+
+    # ─────────────────────────────────────────────────────
+    #  MENU DE PAUSA
+    # ─────────────────────────────────────────────────────
+    def _show_pause_menu(self, bg, player, enemy, phase, total_phases, timer_s):
+        # Renderizar frame atual antes de pausar
+        self.screen.blit(bg, (0, 0))
+        enemy.draw(self.screen)
+        player.draw(self.screen)
+        self.combat.draw(self.screen)
+        self.hud.draw(self.screen, player, enemy, phase, total_phases, timer_s)
+        # Chamar overlay de pausa animado
+        return draw_pause_overlay(self.screen, self.clock, SW, SH, None, None)
