@@ -11,18 +11,24 @@ import sys
 from character import Character, STATE_DEAD, CHAR_W, CHAR_H, FLOOR_Y
 from combat    import CombatManager
 from enemy_ai  import EnemyAI
+from character_select import draw_pause_overlay
 
 SW, SH = 1000, 620
 
 # Paleta HUD
-C_HP_GREEN  = ( 60, 220,  80)
-C_HP_YELLOW = (220, 200,  40)
-C_HP_RED    = (220,  50,  50)
-C_BG_HUD    = (  0,   0,   0, 160)
-C_WHITE     = (255, 255, 255)
-C_GRAY      = (100, 100, 120)
-C_GOLD      = (255, 200,  50)
-C_BLACK     = (  0,   0,   0)
+C_HP_GREEN   = ( 60, 220,  80)
+C_HP_YELLOW  = (220, 200,  40)
+C_HP_RED     = (220,  50,  50)
+C_BG_HUD     = (  0,   0,   0, 160)
+C_WHITE      = (255, 255, 255)
+C_GRAY       = (100, 100, 120)
+C_GOLD       = (255, 200,  50)
+C_BLACK      = (  0,   0,   0)
+C_DARK       = ( 15,  10,  20)
+C_BORDER     = (200, 160,  40)
+C_LAG        = (255, 200, 100)   # cor da barra de dano atrasado
+C_HP_GLOW_HI = (120, 255, 160)   # topo do gradiente (HP alto)
+C_HP_GLOW_LO = (255,  60,  60)   # topo do gradiente (HP baixo)
 
 
 def _hp_color(ratio: float) -> tuple:
@@ -31,6 +37,17 @@ def _hp_color(ratio: float) -> tuple:
     if ratio > 0.25:
         return C_HP_YELLOW
     return C_HP_RED
+
+
+def _lerp_color(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def _draw_rounded_rect(surf, color, rect, radius=6, border=0, border_color=None):
+    """Desenha retângulo com cantos arredondados."""
+    pygame.draw.rect(surf, color, rect, border_radius=radius)
+    if border and border_color:
+        pygame.draw.rect(surf, border_color, rect, border, border_radius=radius)
 
 
 def _load_bg(stage_data: dict) -> pygame.Surface:
@@ -99,41 +116,192 @@ def _load_bg(stage_data: dict) -> pygame.Surface:
 #  HUD
 # ─────────────────────────────────────────────────────────
 class HUD:
-    BAR_W  = 380
-    BAR_H  = 30
-    BAR_Y  = 20
-    PAD    = 20
+    BAR_W   = 390
+    BAR_H   = 22
+    BAR_Y   = 14
+    PAD     = 12
+    NAME_H  = 20   # altura do bloco de nome
+    TOTAL_H = 70   # altura total do painel HUD de cada lado
 
     def __init__(self):
-        self.f_score = pygame.font.SysFont("impact", 26, bold=True)
+        self.f_name  = pygame.font.SysFont("impact", 18, bold=True)
+        self.f_timer = pygame.font.SysFont("impact", 38, bold=True)
+        self.f_hp    = pygame.font.SysFont("impact", 13)
+        # Dano atrasado (lag bar) — rastreia o HP anterior
+        self._p_lag  = 1.0   # ratio atual da lag bar do player
+        self._e_lag  = 1.0   # ratio atual da lag bar do enemy
+        self._LAG_SPEED = 0.008  # velocidade de drain da lag
 
     def draw(self, screen, player: Character, enemy: Character,
              phase: int, total_phases: int, timer_s: int | None = None):
-        
-        # Barra JOGADOR (amarela, lado esquerdo)
+
         p_ratio = max(0.0, player.hp / player.max_hp)
-        self._draw_simple_bar(screen, self.PAD, self.BAR_Y, self.BAR_W, self.BAR_H, p_ratio, left=True)
-        # Texto P1
-        p1_txt = self.f_score.render("P1: 0", True, (255, 30, 30))
-        screen.blit(p1_txt, (self.PAD, self.BAR_Y + self.BAR_H + 5))
+        e_ratio = max(0.0, enemy.hp  / enemy.max_hp)
 
-        # Barra INIMIGO (amarela, lado direito)
-        e_ratio = max(0.0, enemy.hp / enemy.max_hp)
-        self._draw_simple_bar(screen, SW - self.PAD - self.BAR_W, self.BAR_Y, self.BAR_W, self.BAR_H, e_ratio, left=False)
-        # Texto P2
-        p2_txt = self.f_score.render("P2: 0", True, (255, 30, 30))
-        screen.blit(p2_txt, (SW - self.PAD - self.BAR_W, self.BAR_Y + self.BAR_H + 5))
+        # Avançar lag bars
+        if self._p_lag > p_ratio:
+            self._p_lag = max(p_ratio, self._p_lag - self.LAG_SPEED)
+        else:
+            self._p_lag = p_ratio
+        if self._e_lag > e_ratio:
+            self._e_lag = max(e_ratio, self._e_lag - self.LAG_SPEED)
+        else:
+            self._e_lag = e_ratio
 
-    def _draw_simple_bar(self, screen, x, y, w, h, ratio, left: bool):
-        # Empty background 
-        pygame.draw.rect(screen, (220, 220, 220), (x, y, w, h))
-        
-        fill_w = int(w * ratio)
-        if fill_w > 0:
-            if left:
-                pygame.draw.rect(screen, (255, 255, 0), (x, y, fill_w, h))
-            else:
-                pygame.draw.rect(screen, (255, 255, 0), (x + w - fill_w, y, fill_w, h))
+        # ── Painel esquerdo (Player) ──────────────────────
+        px = self.PAD
+        py = self.BAR_Y
+        self._draw_panel(screen, px, py, self.BAR_W, player, p_ratio,
+                         self._p_lag, left=True, label="P1")
+
+        # ── Painel direito (Enemy) ────────────────────────
+        ex = SW - self.PAD - self.BAR_W
+        ey = self.BAR_Y
+        self._draw_panel(screen, ex, ey, self.BAR_W, enemy, e_ratio,
+                         self._e_lag, left=False, label="CPU")
+
+        # ── Timer central ────────────────────────────────
+        if timer_s is not None:
+            self._draw_timer(screen, timer_s)
+
+        # ── Fase (indicador de bolinhas) ──────────────────
+        self._draw_phase(screen, phase, total_phases)
+
+    # ------------------------------------------------------------------
+    LAG_SPEED = 0.008
+
+    def _draw_panel(self, screen, x, y, w, char, ratio, lag_ratio, left, label):
+        panel_h = self.NAME_H + 6 + self.BAR_H + 2
+        # Sombra / fundo escuro do painel inteiro
+        shadow = pygame.Surface((w + 4, panel_h + 4), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 120))
+        screen.blit(shadow, (x - 2, y - 2))
+
+        # ── Faixa do nome ──────────────────────────────
+        name_rect = pygame.Rect(x, y, w, self.NAME_H)
+        # Fundo da faixa: gradiente escuro com borda dourada
+        name_bg = pygame.Surface((w, self.NAME_H), pygame.SRCALPHA)
+        for i in range(self.NAME_H):
+            t = i / self.NAME_H
+            c = _lerp_color((30, 20, 40), (15, 10, 25), t)
+            pygame.draw.line(name_bg, c, (0, i), (w, i))
+        screen.blit(name_bg, (x, y))
+        pygame.draw.rect(screen, C_BORDER, name_rect, 1, border_radius=3)
+
+        # Linha decorativa dourada abaixo do nome
+        pygame.draw.line(screen, C_GOLD, (x, y + self.NAME_H), (x + w, y + self.NAME_H), 1)
+
+        # Texto do nome
+        char_name = char.data.get("name", label)
+        # Abreviar se muito longo
+        if len(char_name) > 22:
+            char_name = char_name[:21] + "."
+        name_surf = self.f_name.render(char_name, True, C_GOLD)
+        if not left:
+            # Espelhar alinhamento para o lado direito
+            screen.blit(name_surf, (x + w - name_surf.get_width() - 6, y + 1))
+        else:
+            screen.blit(name_surf, (x + 6, y + 1))
+
+        # Tag P1/CPU pequena no canto oposto
+        tag_surf = self.f_hp.render(label, True, (180, 180, 180))
+        if left:
+            screen.blit(tag_surf, (x + w - tag_surf.get_width() - 5, y + 3))
+        else:
+            screen.blit(tag_surf, (x + 5, y + 3))
+
+        # ── Barra de HP ─────────────────────────────────
+        bar_y = y + self.NAME_H + 5
+        bar_rect = pygame.Rect(x, bar_y, w, self.BAR_H)
+
+        # Fundo da barra (preto profundo)
+        pygame.draw.rect(screen, (10, 8, 15), bar_rect, border_radius=4)
+
+        # Lag bar (laranja — dano atrasado)
+        lag_w = int(w * lag_ratio)
+        if lag_w > 0:
+            lag_rect = (x if left else x + w - lag_w, bar_y, lag_w, self.BAR_H)
+            pygame.draw.rect(screen, C_LAG, lag_rect, border_radius=4)
+
+        # Barra de HP principal com gradiente vertical
+        hp_w = int(w * ratio)
+        if hp_w > 0:
+            hp_color_bot = _hp_color(ratio)
+            hp_color_top = _lerp_color(hp_color_bot, C_WHITE, 0.45)
+            hp_surf = pygame.Surface((hp_w, self.BAR_H), pygame.SRCALPHA)
+            for i in range(self.BAR_H):
+                t = i / max(1, self.BAR_H - 1)
+                col = _lerp_color(hp_color_top, hp_color_bot, t)
+                pygame.draw.line(hp_surf, col, (0, i), (hp_w, i))
+            # Reflexo brilhante no topo
+            hl_h = max(2, self.BAR_H // 4)
+            hl = pygame.Surface((hp_w, hl_h), pygame.SRCALPHA)
+            hl.fill((255, 255, 255, 55))
+            hp_surf.blit(hl, (0, 0))
+            hp_x = x if left else x + w - hp_w
+            screen.blit(hp_surf, (hp_x, bar_y))
+
+        # Borda dourada da barra
+        pygame.draw.rect(screen, C_BORDER, bar_rect, 2, border_radius=4)
+
+        # Linhas de divisão (25% e 50%)
+        for frac in (0.25, 0.5, 0.75):
+            div_x = x + int(w * frac)
+            pygame.draw.line(screen, (60, 45, 80), (div_x, bar_y + 1), (div_x, bar_y + self.BAR_H - 2), 1)
+
+        # HP numérico
+        hp_str = f"{max(0, char.hp)} / {char.max_hp}"
+        hp_txt = self.f_hp.render(hp_str, True, (200, 200, 200))
+        hp_txt_x = x + 6 if left else x + w - hp_txt.get_width() - 6
+        screen.blit(hp_txt, (hp_txt_x, bar_y + (self.BAR_H - hp_txt.get_height()) // 2))
+
+    def _draw_timer(self, screen, timer_s):
+        """Timer central com moldura anime."""
+        cx = SW // 2
+        ty = self.BAR_Y
+
+        # Moldura do timer
+        box_w, box_h = 74, 52
+        box_x = cx - box_w // 2
+
+        # Fundo escuro semi-transparente
+        box_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        for i in range(box_h):
+            t = i / box_h
+            c = _lerp_color((35, 20, 50), (15, 8, 25), t) + (210,)
+            pygame.draw.line(box_surf, c, (0, i), (box_w, i))
+        screen.blit(box_surf, (box_x, ty))
+
+        # Borda dourada
+        pygame.draw.rect(screen, C_GOLD, (box_x, ty, box_w, box_h), 2, border_radius=5)
+        # Linha decorativa interior
+        pygame.draw.rect(screen, C_BORDER, (box_x + 3, ty + 3, box_w - 6, box_h - 6), 1, border_radius=3)
+
+        # Número
+        urgent = timer_s <= 10
+        color = (255, 60, 60) if urgent else C_WHITE
+        txt = self.f_timer.render(str(timer_s), True, color)
+        screen.blit(txt, txt.get_rect(center=(cx, ty + box_h // 2)))
+
+        # Sombra de texto para legibilidade
+        shadow_txt = self.f_timer.render(str(timer_s), True, (0, 0, 0))
+        # (renderizado atrás — reposicionamos ambos)
+        screen.blit(shadow_txt, shadow_txt.get_rect(center=(cx + 2, ty + box_h // 2 + 2)))
+        screen.blit(txt, txt.get_rect(center=(cx, ty + box_h // 2)))
+
+    def _draw_phase(self, screen, phase, total):
+        """Bolinhas indicando a fase atual embaixo do timer."""
+        cx = SW // 2
+        dot_y = self.BAR_Y + 56
+        spacing = 14
+        total_w = (total - 1) * spacing
+        start_x = cx - total_w // 2
+        for i in range(total):
+            dx = start_x + i * spacing
+            filled = (i < phase)
+            color = C_GOLD if filled else (60, 50, 80)
+            pygame.draw.circle(screen, color, (dx, dot_y), 5)
+            pygame.draw.circle(screen, C_BORDER, (dx, dot_y), 5, 1)
 
 
 # ─────────────────────────────────────────────────────────
@@ -203,12 +371,17 @@ class FightScreen:
             player_char.update()
             enemy_char.update()
 
-            # ── Lançar projétil do especial no final da animação ────
+            # ── Lançar projétil do especial no momento certo ────
             for char in (player_char, enemy_char):
-                if (char.state == "attack_special"
-                        and char.state_timer == 1
-                        and char.data["special"].get("projectile")):
-                    self.combat.spawn_projectile(char)
+                if char.state == "attack_special":
+                    if not getattr(char, "_proj_spawned", False):
+                        # Dispara quando chegar na metade da animação (ou quando timer cair abaixo de metade)
+                        half = char.state_timer <= char.data["special"].get("cooldown", 60) // 2
+                        if half and char.data["special"].get("projectile"):
+                            self.combat.spawn_projectile(char)
+                            char._proj_spawned = True
+                else:
+                    char._proj_spawned = False
 
             # ── Update do combate ─────────────────────────
             self.combat.update(player_char, enemy_char)
@@ -340,42 +513,11 @@ class FightScreen:
     #  MENU DE PAUSA
     # ─────────────────────────────────────────────────────
     def _show_pause_menu(self, bg, player, enemy, phase, total_phases, timer_s):
-        f_pause = pygame.font.SysFont("Arial", 100, bold=True)
-        f_sub   = pygame.font.SysFont("Arial", 34)
-
-        overlay = pygame.Surface((SW, SH), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))
-
-        while True:
-            self.clock.tick(60)
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit(); sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    # Desapausar
-                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_RETURN:
-                        return "resume"
-                    # Sair da partida pra valer
-                    if event.key == pygame.K_q:
-                        return "quit"
-
-            # Fundo congelado
-            self.screen.blit(bg, (0, 0))
-            enemy.draw(self.screen)
-            player.draw(self.screen)
-            self.combat.draw(self.screen)
-            self.hud.draw(self.screen, player, enemy, phase, total_phases, timer_s)
-
-            # Tela de Pausa
-            self.screen.blit(overlay, (0, 0))
-            txt_pause = f_pause.render("PAUSADO", True, C_GOLD)
-            self.screen.blit(txt_pause, txt_pause.get_rect(center=(SW//2, SH//2 - 50)))
-            
-            txt_sub = f_sub.render("[ ENTER ]   Continuar Jogando", True, C_WHITE)
-            self.screen.blit(txt_sub, txt_sub.get_rect(center=(SW//2, SH//2 + 40)))
-            
-            txt_quit = f_sub.render("[ Q ]   Sair para o Menu", True, (255, 100, 100))
-            self.screen.blit(txt_quit, txt_quit.get_rect(center=(SW//2, SH//2 + 90)))
-
-            pygame.display.flip()
+        # Renderizar frame atual antes de pausar
+        self.screen.blit(bg, (0, 0))
+        enemy.draw(self.screen)
+        player.draw(self.screen)
+        self.combat.draw(self.screen)
+        self.hud.draw(self.screen, player, enemy, phase, total_phases, timer_s)
+        # Chamar overlay de pausa animado
+        return draw_pause_overlay(self.screen, self.clock, SW, SH, None, None)
