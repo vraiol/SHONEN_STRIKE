@@ -382,7 +382,7 @@ class CharacterSelectScreen:
             draw_bar(self.screen, tx + 75, sy + 2, pw - 90, 11, ratio, color)
 
         # Golpes
-        moves_y = ty_off + 116
+        moves_y = ty_off + 125
         pygame.draw.line(self.screen, C_BORDER, (tx, moves_y-4), (px+pw-10, moves_y-4), 1)
         moves_title = self.f_tiny.render("GOLPES", True, C_GOLD)
         self.screen.blit(moves_title, (tx, moves_y - 16))
@@ -400,7 +400,7 @@ class CharacterSelectScreen:
             self.screen.blit(m_s, (tx + 88, my))
 
         # Descrição
-        desc_y = moves_y + 78
+        desc_y = moves_y + 80
         pygame.draw.line(self.screen, C_BORDER, (tx, desc_y-6), (px+pw-10, desc_y-6), 1)
         words = ch.get("desc","").split()
         line, lines_out = "", []
@@ -477,11 +477,6 @@ class CharacterSelectScreen:
         shadow_s.set_alpha(80)
         self.screen.blit(shadow_s, shadow_s.get_rect(center=(SW//2+3, 33+3)))
         self.screen.blit(title_s,  title_s.get_rect(center=(SW//2, 33)))
-
-        # Pontos decorativos removidos
-        # for dx in (-180, 180):
-        #     pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 3)
-        #     pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 6, 1)
 
     # ── Rodapé ────────────────────────────────────────────
     def _draw_footer(self):

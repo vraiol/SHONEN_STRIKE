@@ -414,9 +414,9 @@ def show_main_menu(screen, clock):
     BX  = 38
     BY  = height - 62
     GAP = 58
-    btn_play  = Button("▶  JOGAR",      BX, BY - GAP * 2, w=220, h=46)
+    btn_play  = Button("  JOGAR",      BX, BY - GAP * 2, w=220, h=46)
     btn_ctrl  = Button("   CONTROLES",  BX, BY - GAP,     w=220, h=46)
-    btn_quit  = Button("   SAIR",       BX, BY,            w=220, h=46)
+    btn_quit  = Button("  SAIR",       BX, BY,            w=220, h=46)
     main_btns = [btn_play, btn_ctrl, btn_quit]
 
     state = STATE_MAIN
