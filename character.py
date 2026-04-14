@@ -497,14 +497,6 @@ class Character:
             tint.fill((255, 50, 50, 120))
             scaled_surf.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-        # Aura dourada no especial
-        if self.state == STATE_ATTACK_S:
-            aura = pygame.Surface((sw + 40, sh + 40), pygame.SRCALPHA)
-            alpha = int(60 + 40 * math.sin(pygame.time.get_ticks() * 0.01))
-            pygame.draw.ellipse(aura, (*self.color, alpha),
-                                (0, 0, sw + 40, sh + 40))
-            screen.blit(aura, (int(self.x) - 20, int(self.y) - sh - 20))
-
         # Posicionar sprite (pés ancorados no piso, X centralizado)
         draw_x = int(self.x) + (CHAR_W - sw) // 2
         draw_y = int(self.y) - sh
