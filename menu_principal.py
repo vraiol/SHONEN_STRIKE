@@ -213,7 +213,7 @@ def _draw_background(surf, bg_image, use_bg, width, height, tick=0):
             pygame.draw.line(surf, c, (0, y), (width, y))
 
     # Linhas diagonais de energia sutis
-    line_alpha = int(18 + 8 * math.sin(tick * 0.03))
+    line_alpha = 18
     for i in range(0, width + height, 60):
         x1 = i
         y1 = 0
@@ -237,7 +237,7 @@ def _draw_background(surf, bg_image, use_bg, width, height, tick=0):
 # ─────────────────────────────────────────────────────────────────────────────
 def _draw_title(surf, tick, font_title, font_sub, width):
     cy    = 110
-    pulse = 1.0 + 0.015 * math.sin(tick * 0.06)
+    pulse = 1.0
     title_text = "SHONEN STRIKE"
 
     # Glow vermelho profundo atrás
@@ -271,7 +271,7 @@ def _draw_title(surf, tick, font_title, font_sub, width):
 
     # Linha decorativa ondulante embaixo do título
     line_y = cy + mh_val // 2 + 6
-    lw_half = int(160 + 40 * math.sin(tick * 0.05))
+    lw_half = 160
     # Linha dourada central
     pygame.draw.line(surf, GOLD, (width//2 - lw_half, line_y),
                      (width//2 + lw_half, line_y), 2)
@@ -447,10 +447,10 @@ def show_main_menu(screen, clock):
         if state == STATE_MAIN:
             _draw_background(screen, bg_image, use_bg, width, height, tick)
 
-            # Partículas
-            for p in particles:
-                p.update()
-                p.draw(screen)
+            # Partículas desativadas
+            # for p in particles:
+            #     p.update()
+            #     p.draw(screen)
 
             # Vinheta (escurecer bordas)
             vig = pygame.Surface((width, height), pygame.SRCALPHA)
@@ -476,7 +476,7 @@ def show_main_menu(screen, clock):
 
             # Linha decorativa vertical ao lado dos botões
             line_x = BX + 230
-            lg_len = int(90 + 30 * math.sin(tick * 0.04))
+            lg_len = 90
             for bi, btn in enumerate(main_btns):
                 cy = btn.y + btn.h // 2
                 pygame.draw.line(screen, (*GOLD, 80),

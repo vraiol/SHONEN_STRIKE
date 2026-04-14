@@ -101,12 +101,12 @@ class CharacterSelectScreen:
         self.clock  = clock
 
         # Fontes
-        self.f_title  = pygame.font.SysFont("impact", 44, bold=True)
-        self.f_big    = pygame.font.SysFont("impact", 34, bold=True)
-        self.f_name   = pygame.font.SysFont("impact", 24, bold=True)
-        self.f_med    = pygame.font.SysFont("impact", 17, bold=True)
-        self.f_sm     = pygame.font.SysFont("impact", 14)
-        self.f_tiny   = pygame.font.SysFont("impact", 12)
+        self.f_title  = pygame.font.SysFont("Arial", 44, bold=True)
+        self.f_big    = pygame.font.SysFont("Arial", 34, bold=True)
+        self.f_name   = pygame.font.SysFont("Arial", 24, bold=True)
+        self.f_med    = pygame.font.SysFont("Arial", 17, bold=True)
+        self.f_sm     = pygame.font.SysFont("Arial", 14)
+        self.f_tiny   = pygame.font.SysFont("Arial", 12)
 
         # Estado
         self.selected  = 0
@@ -162,8 +162,7 @@ class CharacterSelectScreen:
                 frames.append(img)
             self.sprites.append(frames)
 
-        # Partículas de fundo contínuas
-        self.bg_particles = [self._make_bg_particle() for _ in range(40)]
+       
 
         self._build_bg()
 
@@ -273,13 +272,6 @@ class CharacterSelectScreen:
         card_s.blit(msk, (0,0), special_flags=pygame.BLEND_RGBA_MIN)
         self.screen.blit(card_s, (x, y))
 
-        # Aura de brilho quando selecionado
-        if sel:
-            aura_alpha = int(60 + 30 * math.sin(self.frame * 0.1))
-            aura_s = pygame.Surface((CARD_W+12, CARD_H+12), pygame.SRCALPHA)
-            pygame.draw.rect(aura_s, (*ch["color"], aura_alpha),
-                             aura_s.get_rect(), border_radius=14)
-            self.screen.blit(aura_s, (x-6, y-6))
 
         # Borda
         border_color = ch["color"] if sel else C_BORDER
@@ -444,14 +436,8 @@ class CharacterSelectScreen:
             sh2 = int(prev_h2 * sc)
             base_sprite = pygame.transform.scale(base_sprite, (sw2, sh2))
 
-        # Aura de brilho atrás do sprite
-        aura_alpha = int(35 + 20 * math.sin(self.frame * 0.08))
-        aura_r     = prev_w // 2 + 30
-        aura_surf  = pygame.Surface((aura_r*2, aura_r*2), pygame.SRCALPHA)
-        pygame.draw.circle(aura_surf, (*ch["color"], aura_alpha), (aura_r, aura_r), aura_r)
-        sprite_cx = pw + 22 + (SW - pw - 22) // 2
-        sprite_boty = self.cards_y - 8
-        self.screen.blit(aura_surf, (sprite_cx - aura_r, sprite_boty - aura_r - prev_h2 // 3))
+        sprite_cx = px + pw + (SW - (px + pw)) // 2
+        sprite_boty = py + ph - 10
 
         # Sombra no chão
         shadow_surf = pygame.Surface((prev_w + 40, 18), pygame.SRCALPHA)
@@ -492,10 +478,10 @@ class CharacterSelectScreen:
         self.screen.blit(shadow_s, shadow_s.get_rect(center=(SW//2+3, 33+3)))
         self.screen.blit(title_s,  title_s.get_rect(center=(SW//2, 33)))
 
-        # Pontos decorativos
-        for dx in (-180, 180):
-            pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 3)
-            pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 6, 1)
+        # Pontos decorativos removidos
+        # for dx in (-180, 180):
+        #     pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 3)
+        #     pygame.draw.circle(self.screen, C_ACCENT, (SW//2+dx, 34), 6, 1)
 
     # ── Rodapé ────────────────────────────────────────────
     def _draw_footer(self):
@@ -550,28 +536,6 @@ class CharacterSelectScreen:
         if self.flash_timer == 0:
             self.result = self.selected
 
-    # ── Orbe decorativo ────────────────────────────────────
-    def _draw_rotating_orb(self):
-        ch    = CHARACTERS[self.selected]
-        orb_x = SW - 60
-        orb_y = SH // 2
-        angle = self.frame * 3
-
-        orb_surf = pygame.Surface((28, 28), pygame.SRCALPHA)
-        pts = [(14,2),(18,9),(26,9),(20,15),(23,24),(14,19),(5,24),(8,15),(2,9),(10,9)]
-        pygame.draw.polygon(orb_surf, ch["color"], pts)
-        pygame.draw.polygon(orb_surf, C_WHITE,     pts, 1)
-        rotated = pygame.transform.rotate(orb_surf, angle)
-        self.screen.blit(rotated, rotated.get_rect(center=(orb_x, orb_y)))
-
-        for i in range(4):
-            orbit_angle = math.radians(angle + i * 90)
-            sx = int(orb_x + 28 * math.cos(orbit_angle))
-            sy = int(orb_y + 16 * math.sin(orbit_angle))
-            mini = pygame.Surface((10,10), pygame.SRCALPHA)
-            pygame.draw.circle(mini, (*ch["color"], 160), (5,5), 4)
-            mini_rot = pygame.transform.rotate(mini, -angle*2)
-            self.screen.blit(mini_rot, (sx-5, sy-5))
 
     # ── Evento de troca ────────────────────────────────────
     def _on_change(self):
@@ -624,8 +588,6 @@ class CharacterSelectScreen:
             self._draw_header()
             self._draw_preview()
             self._draw_particles()
-            self._draw_rotating_orb()
-
             for i in range(TOTAL_CARDS):
                 self._draw_card(i, i == self.selected)
 
