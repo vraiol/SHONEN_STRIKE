@@ -1,6 +1,8 @@
 # SHONEN STRIKE (Anime Fighters)
 Contribuidores: Cauã Guerreiro, Douglas Gobitsch e Vinicius Raiol.
 
+![Menu Principal](imagens/foto%20menu.png)
+
 Um jogo de luta 2D desenvolvido em Python utilizando a biblioteca **Pygame**. Escolha seus personagens favoritos dos animes mais populares e enfrente uma campanha em 3 fases desafiadoras.
 
 ## 🎮 Sobre o Jogo
