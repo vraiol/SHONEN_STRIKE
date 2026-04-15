@@ -111,7 +111,7 @@ CHARACTERS = [
         "title": "Capitão do 11º Esquadrão",
         "hp":    110,
         "speed": 8,
-        "style": "Bruto",
+        "style": "Shikai",
         "desc": "Um guerreiro sanguinário que vive apenas para lutar.",
         "color": (200, 200, 50),
         "sprite_scale": 1.5,
